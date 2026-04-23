@@ -61,7 +61,7 @@ def test_levenberg_marquardt_reduces_residual_loss():
 
 def test_levenberg_marquardt_trust_region_reduces_residual_loss():
     x = _vector_param()
-    optimizer = LevenbergMarquardt([x], strategy="trust_region")
+    optimizer = LevenbergMarquardt([x], strategy="trust region")
 
     with torch.no_grad():
         before = _residual_loss(x).item()
