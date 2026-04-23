@@ -62,6 +62,17 @@ def test_metropolis_step_runs():
     assert isinstance(loss, torch.Tensor)
 
 
+def test_metropolis_mutate_changes_single_parameter():
+    x = torch.nn.Parameter(torch.tensor([1.0, -1.0, 0.5]))
+    optimizer = Metropolis([x])
+
+    torch.manual_seed(0)
+    before = optimizer.params.clone()
+    after = optimizer.mutate()
+
+    assert torch.count_nonzero(after - before).item() == 1
+
+
 def test_genetic_step_runs_with_small_population():
     x = _vector_param()
     optimizer = Genetic([x])
