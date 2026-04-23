@@ -41,7 +41,7 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
     
     def loss(self, errors):
         # MSE loss, not divided by number of data, doesn't matter
-        return errors.T @ errors
+        return errors @ errors
     
     @torch.no_grad()
     def update_weights(self, updates):

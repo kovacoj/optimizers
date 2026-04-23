@@ -53,6 +53,9 @@ class Genetic(torch.optim.Optimizer):
 
     @torch.no_grad
     def crossover(self, parent1, parent2):
+        if self.numel < 2:
+            return parent1.clone(), parent2.clone()
+
         crossover_point = torch.randint(1, self.numel, (1,))[0]
 
         child1 = torch.cat((parent1[:crossover_point], parent2[crossover_point:]))

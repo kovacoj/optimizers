@@ -43,7 +43,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     @torch.no_grad()
     def loss(self, errors):
         # MSE loss, not divided by number of data, doesn't matter
-        return errors.T @ errors
+        return errors @ errors
     
     @torch.no_grad()
     def update_weights(self, update):
@@ -77,10 +77,12 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         self.update_weights(updates)
 
         # line search for mu
-        for m in range(self.m_max):
+        loss_decreased = False
+        for _ in range(self.m_max):
 
             # check if loss has decreased
             if self.loss(closure()) < self.loss(errors):
+                loss_decreased = True
                 break
 
             # restore weights
@@ -94,7 +96,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
             # update weights
             self.update_weights(update = +updates)
 
-        if m < self.m_max:
+        if loss_decreased:
             self.mu /= self.mu_factor
 
         # how to return break?, should I return loss?
