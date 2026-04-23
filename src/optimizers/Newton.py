@@ -33,14 +33,26 @@ class Newton(torch.optim.Optimizer):
 
         prototype = self.param_groups[0]['params'][0]
 
-        grads = grad(closure(), self.param_groups[0]['params'], create_graph=True)
+        params = self.param_groups[0]['params']
+        grads = grad(closure(), params, create_graph=True, allow_unused=True)
 
-        g = torch.cat([g.reshape(-1) for g in grads])
+        g = torch.cat([
+            g.reshape(-1) if g is not None else param.new_zeros(param.numel())
+            for param, g in zip(params, grads)
+        ])
         H = prototype.new_empty(self.numel, self.numel)
 
         for idx in range(g.shape[0]):
+            if not g[idx].requires_grad:
+                H[idx] = prototype.new_zeros(self.numel)
+                continue
+
             H[idx] = torch.hstack([
-                d.view(1, -1) for d in grad(g[idx], self.param_groups[0]['params'], create_graph=True, retain_graph=True)
+                d.view(1, -1) if d is not None else param.new_zeros(1, param.numel())
+                for param, d in zip(
+                    params,
+                    grad(g[idx], params, create_graph=True, retain_graph=True, allow_unused=True)
+                )
             ])
         H += 1e-4 * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype) # damping for num. stability
 

@@ -44,6 +44,17 @@ def test_newton_rejects_multiple_param_groups():
         optimizer.step(lambda: (x ** 2).sum() + (y ** 2).sum())
 
 
+def test_newton_step_ignores_unused_trainable_parameter():
+    x = _scalar_param()
+    y = _scalar_param(2.0)
+    optimizer = Newton([x, y])
+
+    optimizer.step(lambda: (x ** 2).sum())
+
+    assert x.item() != 1.0
+    assert y.item() == pytest.approx(2.0)
+
+
 def test_annealing_step_runs():
     x = _scalar_param()
     optimizer = Annealing([x])
