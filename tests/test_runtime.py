@@ -6,8 +6,8 @@ from optimizers import ExtendedKalmanFilter
 from optimizers import Genetic
 from optimizers import KalmanFilter
 from optimizers import LevenbergMarquardt
+from optimizers import Metropolis
 from optimizers import Newton
-from optimizers.Metropolis import Metropolis
 
 
 def _scalar_param(value=1.0):
