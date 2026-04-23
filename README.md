@@ -2,7 +2,10 @@
 
 [![Tests](https://github.com/kovacoj/optimizers/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/kovacoj/optimizers/actions/workflows/tests.yml)
 
-Non-standard optimizers for `PyTorch`.
+A set of mostly quasi-Newton optimizers for PyTorch.
+
+Initial aim was academic; the speedup gained is coupled with higher memory requirements. Therefore the quasi-Netwon optimizers should be used on small systems.
+The genetic algorithms are basically totally useless and if they're solving a specific problem, the problem should be reformulated into such that a gradient-based optimization can be used.
 
 ## Install with uv
 
