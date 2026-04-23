@@ -8,6 +8,20 @@ Add the package from GitHub:
 uv add git+https://github.com/kovacoj/optimizers.git
 ```
 
+Add the package as a git submodule if you want to pull upstream updates into your repo explicitly:
+
+```bash
+git submodule add https://github.com/kovacoj/optimizers.git vendor/optimizers
+uv add ./vendor/optimizers
+```
+
+Sync the submodule to the latest upstream commit later with:
+
+```bash
+git submodule update --remote --merge vendor/optimizers
+uv lock
+```
+
 For local development after cloning the repo:
 
 ```bash
