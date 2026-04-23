@@ -11,14 +11,14 @@ uv add git+https://github.com/kovacoj/optimizers.git
 Add the package as a git submodule if you want to pull upstream updates into your repo explicitly:
 
 ```bash
-git submodule add https://github.com/kovacoj/optimizers.git vendor/optimizers
-uv add ./vendor/optimizers
+git submodule add https://github.com/kovacoj/optimizers.git optimizers
+uv add ./optimizers
 ```
 
 Sync the submodule to the latest upstream commit later with:
 
 ```bash
-git submodule update --remote --merge vendor/optimizers
+git submodule update --remote --merge optimizers
 uv lock
 ```
 
