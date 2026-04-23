@@ -2,6 +2,14 @@ import torch
 from torch.autograd import grad
 
 
+def all_params(param_groups):
+    return [
+        param
+        for group in param_groups
+        for param in group['params']
+    ]
+
+
 def trainable_params(param_groups):
     return [
         param
@@ -11,8 +19,11 @@ def trainable_params(param_groups):
     ]
 
 
-def flat_params(params):
-    return torch.cat([param.flatten() for param in params])
+def flat_params(param_groups):
+    return torch.cat([
+        param.flatten()
+        for param in all_params(param_groups)
+    ])
 
 
 @torch.no_grad()
@@ -57,3 +68,13 @@ def residual_jacobian(targets, params):
 
 def residual_sum_squares(errors):
     return errors @ errors
+
+
+class _FlatParamOptimizerMixin:
+    @property
+    def params(self):
+        return flat_params(self.param_groups)
+
+    @torch.no_grad()
+    def update_weights(self, update):
+        load_flat_params_(all_params(self.param_groups), update)

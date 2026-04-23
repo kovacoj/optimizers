@@ -1,11 +1,10 @@
 import torch
 from .Newton import Newton
-from ._utils import flat_params
-from ._utils import load_flat_params_
-from ._utils import trainable_params
+from ._utils import _FlatParamOptimizerMixin
+from ._utils import all_params
 
 
-class Genetic(torch.optim.Optimizer):
+class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
     def __init__(self, params):
         super().__init__(params, {}) 
 
@@ -15,7 +14,7 @@ class Genetic(torch.optim.Optimizer):
 
         params = trainable_params(self.param_groups)
         self.numel = sum(
-            param.numel() for param in params
+            param.numel() for param in all_params(self.param_groups)
         )
 
         if self.numel == 0:
@@ -31,14 +30,6 @@ class Genetic(torch.optim.Optimizer):
 
         self.helper = torch.optim.Adam(self.param_groups)
         # self.helper = Newton(self.param_groups[0]['params'])
-
-    @property
-    def params(self):
-        return flat_params(trainable_params(self.param_groups))
-
-    @torch.no_grad
-    def update_weights(self, update):
-        load_flat_params_(trainable_params(self.param_groups), update)
 
     @torch.no_grad
     def mutate(self, genome):
