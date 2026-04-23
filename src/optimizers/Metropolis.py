@@ -30,11 +30,11 @@ class Metropolis(torch.optim.Optimizer):
 
     @torch.no_grad
     def mutate(self, ):
-        torch.randint(low=0, high=self.numel, size=(1,))
-        
-        return self.params + torch.randn_like(
-            self.params
-        )*self.temperature
+        proposal = self.params.clone()
+        idx = torch.randint(low=0, high=self.numel, size=()).item()
+        proposal[idx] += torch.randn((), device=proposal.device, dtype=proposal.dtype) * self.temperature
+
+        return proposal
 
     @torch.no_grad
     def step(self, closure):

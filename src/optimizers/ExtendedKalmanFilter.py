@@ -19,21 +19,27 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
 
         self.numel = sum(param.numel() for group in self.param_groups for param in group['params'] if param.requires_grad)
 
-        prototype = self.param_groups[0]['params'][0]
+        if self.numel == 0:
+            raise ValueError("ExtendedKalmanFilter requires at least one trainable parameter")
+
+        prototype = next(
+            param for group in self.param_groups for param in group['params'] if param.requires_grad
+        )
 
         self.P = torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
         self.Q = self.q * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
 
     def jacobian(self, targets):
         # needs to be tested (nn design)
+        params = [param for param in self.param_groups[0]['params'] if param.requires_grad]
         J = targets.new_empty(targets.shape[0], self.numel)
         
         for i in range(targets.shape[0]):
             J[i] = torch.hstack([
                 d.view(1, -1) if d is not None else param.new_zeros(1, param.numel())
                 for param, d in zip(
-                    self.param_groups[0]['params'],
-                    grad(targets[i], self.param_groups[0]['params'], create_graph=True, retain_graph=True, allow_unused=True)
+                    params,
+                    grad(targets[i], params, create_graph=True, retain_graph=True, allow_unused=True)
                 )
             ])
 
@@ -50,6 +56,9 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
         start_idx = 0
         for group in self.param_groups:
             for param in group['params']:
+                if not param.requires_grad:
+                    continue
+
                 param.data.add_(updates[start_idx:start_idx + param.numel()].view(param.size()))
                 start_idx += param.numel()
 

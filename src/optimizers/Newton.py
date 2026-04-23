@@ -7,8 +7,11 @@ class Newton(torch.optim.Optimizer):
         super().__init__(params, {})
 
         self.numel = sum(
-            p.numel() for group in self.param_groups for p in group['params']
+            p.numel() for group in self.param_groups for p in group['params'] if p.requires_grad
         )
+
+        if self.numel == 0:
+            raise ValueError("Newton requires at least one trainable parameter")
     
     @property
     def params(self):
@@ -23,6 +26,9 @@ class Newton(torch.optim.Optimizer):
         offset = 0
         for group in self.param_groups:
             for param in group['params']:
+                if not param.requires_grad:
+                    continue
+
                 numel = param.numel()
 
                 param.add_(update[offset: offset + numel].view_as(param))
@@ -31,16 +37,27 @@ class Newton(torch.optim.Optimizer):
     def step(self, closure: callable):
         assert len(self.param_groups) == 1
 
-        prototype = self.param_groups[0]['params'][0]
+        params = [param for param in self.param_groups[0]['params'] if param.requires_grad]
+        prototype = params[0]
+        grads = grad(closure(), params, create_graph=True, allow_unused=True)
 
-        grads = grad(closure(), self.param_groups[0]['params'], create_graph=True)
-
-        g = torch.cat([g.reshape(-1) for g in grads])
+        g = torch.cat([
+            g.reshape(-1) if g is not None else param.new_zeros(param.numel())
+            for param, g in zip(params, grads)
+        ])
         H = prototype.new_empty(self.numel, self.numel)
 
         for idx in range(g.shape[0]):
+            if not g[idx].requires_grad:
+                H[idx] = prototype.new_zeros(self.numel)
+                continue
+
             H[idx] = torch.hstack([
-                d.view(1, -1) for d in grad(g[idx], self.param_groups[0]['params'], create_graph=True, retain_graph=True)
+                d.view(1, -1) if d is not None else param.new_zeros(1, param.numel())
+                for param, d in zip(
+                    params,
+                    grad(g[idx], params, create_graph=True, retain_graph=True, allow_unused=True)
+                )
             ])
         H += 1e-4 * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype) # damping for num. stability
 

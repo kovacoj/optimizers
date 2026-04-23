@@ -22,19 +22,25 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         self.numel = sum(param.numel() for group in self.param_groups for param in group['params'] if param.requires_grad)
         # self.numel = reduce(lambda total, p: total + p.numel(), self.param_groups, 0)
 
-        self.prototype = self.param_groups[0]['params'][0]
+        if self.numel == 0:
+            raise ValueError("LevenbergMarquardt requires at least one trainable parameter")
+
+        self.prototype = next(
+            param for group in self.param_groups for param in group['params'] if param.requires_grad
+        )
 
     # @torch.compile ?
     def jacobian(self, targets):
         # needs to be tested (nn design)
+        params = [param for param in self.param_groups[0]['params'] if param.requires_grad]
         J = targets.new_empty(targets.shape[0], self.numel)
         
         for i in range(targets.shape[0]):
             J[i] = torch.hstack([
                 d.view(1, -1) if d is not None else param.new_zeros(1, param.numel())
                 for param, d in zip(
-                    self.param_groups[0]['params'],
-                    grad(targets[i], self.param_groups[0]['params'], create_graph=True, retain_graph=True, allow_unused=True)
+                    params,
+                    grad(targets[i], params, create_graph=True, retain_graph=True, allow_unused=True)
                 )
             ])
 
@@ -52,6 +58,9 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         offset = 0
         for group in self.param_groups:
             for param in group['params']:
+                if not param.requires_grad:
+                    continue
+
                 numel = param.numel()
 
                 param.add_(update[offset: offset + numel].view_as(param))
@@ -67,6 +76,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         # errors need to be computed from closure
         # closure (callable) - reevaluates the model and returns the loss, in our case the errors
         errors = closure()
+        base_loss = self.loss(errors)
         
         # compute Jacobian matrix
         J = self.jacobian(errors)
@@ -77,12 +87,9 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         self.update_weights(updates)
 
         # line search for mu
-        loss_decreased = False
+        loss_decreased = self.loss(closure()) < base_loss
         for _ in range(self.m_max):
-
-            # check if loss has decreased
-            if self.loss(closure()) < self.loss(errors):
-                loss_decreased = True
+            if loss_decreased:
                 break
 
             # restore weights
@@ -96,8 +103,12 @@ class LevenbergMarquardt(torch.optim.Optimizer):
             # update weights
             self.update_weights(update = +updates)
 
+            loss_decreased = self.loss(closure()) < base_loss
+
         if loss_decreased:
             self.mu /= self.mu_factor
+        else:
+            self.update_weights(update = -updates)
 
         # how to return break?, should I return loss?
         # -> returning loss, mu can be controled by
