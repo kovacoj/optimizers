@@ -45,9 +45,9 @@ class Metropolis(torch.optim.Optimizer):
             self.update_weights(params)
             Fs[idx] = closure().item()
 
-        idx = torch.rand(1) < torch.exp(
+        idx = int((torch.rand(1) < torch.exp(
             (Fs[0] - Fs[1]) / self.temperature
-        )
+        )).item())
 
         self.update_weights(variants[idx])
         self.temperature *= 1 - 1e-3
