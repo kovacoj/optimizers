@@ -1,25 +1,23 @@
 import torch
 from .Newton import Newton
 from ._utils import _FlatParamOptimizerMixin
-from ._utils import all_params
 from ._utils import trainable_params
 
 
 class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
     def __init__(self, params):
-        super().__init__(params, {}) 
-
-        self.mutation_rate = 0.1
-        self.mutation_strength = 0.1
-        self.elite_ratio = 0.2
+        super().__init__(params, dict(
+            mutation_rate=0.1,
+            mutation_strength=0.1,
+            elite_ratio=0.2,
+            pop_size=100,
+        )) 
 
         params = trainable_params(self.param_groups)
         self.numel = sum(param.numel() for param in params)
 
         if self.numel == 0:
             raise ValueError("Genetic requires at least one trainable parameter")
-
-        self.pop_size = 100 # max(int(self.numel**0.5), 10)
 
         self.best_genome = self.params
         self.best_fitness = float('inf')
@@ -29,6 +27,65 @@ class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
 
         self.helper = torch.optim.Adam(self.param_groups)
         # self.helper = Newton(self.param_groups[0]['params'])
+
+    def _state_param(self):
+        return trainable_params(self.param_groups)[0]
+
+    @property
+    def mutation_rate(self):
+        return self.param_groups[0]['mutation_rate']
+
+    @mutation_rate.setter
+    def mutation_rate(self, value):
+        self.param_groups[0]['mutation_rate'] = value
+
+    @property
+    def mutation_strength(self):
+        return self.param_groups[0]['mutation_strength']
+
+    @mutation_strength.setter
+    def mutation_strength(self, value):
+        self.param_groups[0]['mutation_strength'] = value
+
+    @property
+    def elite_ratio(self):
+        return self.param_groups[0]['elite_ratio']
+
+    @elite_ratio.setter
+    def elite_ratio(self, value):
+        self.param_groups[0]['elite_ratio'] = value
+
+    @property
+    def pop_size(self):
+        return self.param_groups[0]['pop_size']
+
+    @pop_size.setter
+    def pop_size(self, value):
+        self.param_groups[0]['pop_size'] = value
+
+    @property
+    def best_genome(self):
+        return self.state[self._state_param()]['best_genome']
+
+    @best_genome.setter
+    def best_genome(self, value):
+        self.state[self._state_param()]['best_genome'] = value
+
+    @property
+    def best_fitness(self):
+        return self.state[self._state_param()]['best_fitness']
+
+    @best_fitness.setter
+    def best_fitness(self, value):
+        self.state[self._state_param()]['best_fitness'] = value
+
+    @property
+    def population(self):
+        return self.state[self._state_param()]['population']
+
+    @population.setter
+    def population(self, value):
+        self.state[self._state_param()]['population'] = value
 
     @torch.no_grad
     def mutate(self, genome):
