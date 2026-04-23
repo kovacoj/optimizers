@@ -12,13 +12,18 @@ class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
         self.mutation_strength = 0.1
         self.elite_ratio = 0.2
 
-        self.best_genome = self.params
-        self.best_fitness = float('inf')
-
+        params = trainable_params(self.param_groups)
         self.numel = sum(
             param.numel() for param in all_params(self.param_groups)
         )
+
+        if self.numel == 0:
+            raise ValueError("Genetic requires at least one trainable parameter")
+
         self.pop_size = 100 # max(int(self.numel**0.5), 10)
+
+        self.best_genome = self.params
+        self.best_fitness = float('inf')
 
         self.population = self.params.unsqueeze(0).repeat(self.pop_size, 1)
         self.population += torch.randn_like(self.population) * 1e-0

@@ -8,9 +8,14 @@ class Annealing(_FlatParamOptimizerMixin, torch.optim.Optimizer):
     def __init__(self, params):
         super().__init__(params, {}) 
 
+        params = trainable_params(self.param_groups)
         self.numel = sum(
             param.numel() for param in all_params(self.param_groups)
         )
+
+        if self.numel == 0:
+            raise ValueError("Annealing requires at least one trainable parameter")
+
         self.temperature = 1
 
     @torch.no_grad

@@ -115,6 +115,43 @@ def test_metropolis_mutate_changes_single_parameter():
     assert torch.count_nonzero(after - before).item() == 1
 
 
+def test_annealing_step_ignores_frozen_parameter():
+    x = torch.nn.Parameter(torch.tensor([2.0]), requires_grad=False)
+    y = _scalar_param()
+    optimizer = Annealing([x, y])
+
+    optimizer.step(lambda: (y ** 2).sum())
+
+    assert x.item() == pytest.approx(2.0)
+
+
+def test_metropolis_step_ignores_frozen_parameter(monkeypatch):
+    x = torch.nn.Parameter(torch.tensor([2.0]), requires_grad=False)
+    y = _scalar_param()
+    optimizer = Metropolis([x, y])
+
+    monkeypatch.setattr(optimizer, "mutate", lambda: torch.tensor([0.0]))
+    monkeypatch.setattr(torch, "rand", lambda *args, **kwargs: torch.tensor([0.0]))
+
+    optimizer.step(lambda: (y ** 2).sum())
+
+    assert x.item() == pytest.approx(2.0)
+    assert y.item() == pytest.approx(0.0)
+
+
+def test_genetic_step_ignores_frozen_parameter():
+    x = torch.nn.Parameter(torch.tensor([2.0]), requires_grad=False)
+    y = _scalar_param()
+    optimizer = Genetic([x, y])
+    optimizer.pop_size = 4
+    optimizer.population = torch.tensor([[0.0]]).repeat(optimizer.pop_size, 1)
+
+    optimizer.step(lambda: (y ** 2).sum())
+
+    assert x.item() == pytest.approx(2.0)
+    assert y.item() == pytest.approx(0.0)
+
+
 def test_genetic_step_runs_with_small_population():
     x = _vector_param()
     optimizer = Genetic([x])
