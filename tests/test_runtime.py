@@ -73,6 +73,17 @@ def test_genetic_step_runs_with_small_population():
     assert isinstance(loss, torch.Tensor)
 
 
+def test_genetic_step_runs_with_scalar_parameter_vector():
+    x = _scalar_param()
+    optimizer = Genetic([x])
+    optimizer.pop_size = 4
+    optimizer.population = optimizer.params.unsqueeze(0).repeat(optimizer.pop_size, 1)
+
+    loss = optimizer.step(lambda: (x ** 2).sum())
+
+    assert isinstance(loss, torch.Tensor)
+
+
 def test_levenberg_marquardt_step_runs():
     x = _scalar_param()
     optimizer = LevenbergMarquardt([x])
@@ -85,6 +96,15 @@ def test_levenberg_marquardt_step_runs():
 def test_levenberg_marquardt_step_runs_with_float64():
     x = torch.nn.Parameter(torch.tensor([1.0], dtype=torch.float64))
     optimizer = LevenbergMarquardt([x])
+
+    loss = optimizer.step(lambda: x.view(-1))
+
+    assert isinstance(loss, float)
+
+
+def test_levenberg_marquardt_step_runs_with_zero_line_search_steps():
+    x = _scalar_param()
+    optimizer = LevenbergMarquardt([x], m_max=0)
 
     loss = optimizer.step(lambda: x.view(-1))
 
