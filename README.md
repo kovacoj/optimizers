@@ -6,6 +6,8 @@ Non-standard optimizers for `PyTorch`.
 
 ## Install with uv
 
+This package currently targets Python 3.13+ and is documented for Git/source installs rather than PyPI publication.
+
 Add the package from GitHub:
 
 ```bash
