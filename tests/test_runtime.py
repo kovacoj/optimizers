@@ -84,6 +84,26 @@ def test_metropolis_step_runs():
     assert isinstance(loss, torch.Tensor)
 
 
+@pytest.mark.parametrize("optimizer_cls", [Annealing, Metropolis])
+def test_stochastic_step_acceptance_uses_explicit_index(optimizer_cls, monkeypatch):
+    x = _scalar_param()
+    optimizer = optimizer_cls([x])
+
+    def closure():
+        return (x ** 2).sum()
+
+    monkeypatch.setattr(optimizer, "mutate", lambda: torch.tensor([2.0]))
+
+    monkeypatch.setattr(torch, "rand", lambda *args, **kwargs: torch.tensor([0.0]))
+    optimizer.step(closure)
+    assert x.item() == pytest.approx(2.0)
+
+    optimizer.update_weights(torch.tensor([1.0]))
+    monkeypatch.setattr(torch, "rand", lambda *args, **kwargs: torch.tensor([1.0]))
+    optimizer.step(closure)
+    assert x.item() == pytest.approx(1.0)
+
+
 def test_metropolis_mutate_changes_single_parameter():
     x = torch.nn.Parameter(torch.tensor([1.0, -1.0, 0.5]))
     optimizer = Metropolis([x])
