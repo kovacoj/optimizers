@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/kovacoj/optimizers/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/kovacoj/optimizers/actions/workflows/tests.yml)
 
-Repository of not very useful optimizers in `PyTorch`.
+Non-standard optimizers for `PyTorch`.
 
 ## Install with uv
 
@@ -42,3 +42,17 @@ from optimizers import KalmanFilter
 ```
 
 `KalmanFilter` expects `closure()` to return `(errors, H)`, while `ExtendedKalmanFilter` computes the Jacobian from a residual-vector closure.
+
+## Public API
+
+| Optimizer | Closure contract | `step()` return |
+| --- | --- | --- |
+| `Newton` | scalar loss tensor | `None` |
+| `Annealing` | scalar loss tensor | scalar loss tensor |
+| `Metropolis` | scalar loss tensor | scalar loss tensor |
+| `Genetic` | scalar loss tensor | scalar loss tensor |
+| `LevenbergMarquardt` | residual vector tensor | Python `float` |
+| `ExtendedKalmanFilter` | residual vector tensor | scalar loss tensor |
+| `KalmanFilter` | `(errors, H)` | scalar loss tensor |
+
+`KalmanFilter` is the linear-residual variant. `ExtendedKalmanFilter` computes the residual Jacobian internally.
