@@ -19,15 +19,23 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
 
         self.numel = sum(param.numel() for group in self.param_groups for param in group['params'] if param.requires_grad)
 
-        self.P = torch.eye(self.numel) / self.eta # error covariance matrix
-        self.Q = self.q * torch.eye(self.numel) # artificial process noise
+        prototype = self.param_groups[0]['params'][0]
+
+        self.P = torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
+        self.Q = self.q * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
 
     def jacobian(self, targets):
         # needs to be tested (nn design)
-        J = torch.empty(targets.shape[0], self.numel)
+        J = targets.new_empty(targets.shape[0], self.numel)
         
         for i in range(targets.shape[0]):
-            J[i] = torch.hstack([d.view(1, -1) if d is not None else torch.tensor([0.]).view(1, -1) for d in grad(targets[i], self.param_groups[0]['params'], create_graph=True, retain_graph=True, allow_unused=True)])
+            J[i] = torch.hstack([
+                d.view(1, -1) if d is not None else param.new_zeros(1, param.numel())
+                for param, d in zip(
+                    self.param_groups[0]['params'],
+                    grad(targets[i], self.param_groups[0]['params'], create_graph=True, retain_graph=True, allow_unused=True)
+                )
+            ])
 
         return J
     
@@ -58,15 +66,17 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
         
         H = self.jacobian(errors)
 
-        A = torch.inverse(torch.eye(errors.shape[0]) / self.eta + H @ self.P @ H.T)
+        P = self.P / self.tau + self.Q
 
-        K = self.P @ H.T @ A
+        A = H @ P @ H.T + ((1 / self.eta) + self.eps) * torch.eye(errors.shape[0], device=errors.device, dtype=errors.dtype)
+
+        K = torch.linalg.solve(A, H @ P).T
 
         updates = -(K @ errors).view(-1)
 
         self.update_weights(updates)
 
-        self.P -= K @ H @ self.P + self.Q
+        self.P = P - K @ H @ P
 
         return self.loss(closure())
 
