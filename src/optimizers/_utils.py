@@ -1,0 +1,43 @@
+import torch
+from torch.autograd import grad
+
+
+def trainable_params(param_groups):
+    return [
+        param
+        for group in param_groups
+        for param in group['params']
+        if param.requires_grad
+    ]
+
+
+@torch.no_grad()
+def add_flat_update_(params, update):
+    update = update.view(-1)
+
+    offset = 0
+    for param in params:
+        numel = param.numel()
+
+        param.add_(update[offset: offset + numel].view_as(param))
+        offset += numel
+
+
+def residual_jacobian(targets, params):
+    numel = sum(param.numel() for param in params)
+    J = targets.new_empty(targets.shape[0], numel)
+
+    for i in range(targets.shape[0]):
+        J[i] = torch.hstack([
+            d.view(1, -1) if d is not None else param.new_zeros(1, param.numel())
+            for param, d in zip(
+                params,
+                grad(targets[i], params, create_graph=True, retain_graph=True, allow_unused=True)
+            )
+        ])
+
+    return J
+
+
+def residual_sum_squares(errors):
+    return errors @ errors

@@ -1,5 +1,9 @@
 import torch
-from torch.autograd import grad
+
+from ._utils import add_flat_update_
+from ._utils import residual_jacobian
+from ._utils import residual_sum_squares
+from ._utils import trainable_params
     
 
 class LevenbergMarquardt(torch.optim.Optimizer):
@@ -19,52 +23,26 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         
         super(LevenbergMarquardt, self).__init__(params, defaults)
 
-        self.numel = sum(param.numel() for group in self.param_groups for param in group['params'] if param.requires_grad)
+        params = trainable_params(self.param_groups)
+        self.numel = sum(param.numel() for param in params)
         # self.numel = reduce(lambda total, p: total + p.numel(), self.param_groups, 0)
 
         if self.numel == 0:
             raise ValueError("LevenbergMarquardt requires at least one trainable parameter")
 
-        self.prototype = next(
-            param for group in self.param_groups for param in group['params'] if param.requires_grad
-        )
+        self.prototype = params[0]
 
     # @torch.compile ?
     def jacobian(self, targets):
-        # needs to be tested (nn design)
-        params = [param for param in self.param_groups[0]['params'] if param.requires_grad]
-        J = targets.new_empty(targets.shape[0], self.numel)
-        
-        for i in range(targets.shape[0]):
-            J[i] = torch.hstack([
-                d.view(1, -1) if d is not None else param.new_zeros(1, param.numel())
-                for param, d in zip(
-                    params,
-                    grad(targets[i], params, create_graph=True, retain_graph=True, allow_unused=True)
-                )
-            ])
-
-        return J
+        return residual_jacobian(targets, trainable_params(self.param_groups))
     
     @torch.no_grad()
     def loss(self, errors):
-        # MSE loss, not divided by number of data, doesn't matter
-        return errors @ errors
+        return residual_sum_squares(errors)
     
     @torch.no_grad()
     def update_weights(self, update):
-        update = update.view(-1)
-
-        offset = 0
-        for group in self.param_groups:
-            for param in group['params']:
-                if not param.requires_grad:
-                    continue
-
-                numel = param.numel()
-
-                param.add_(update[offset: offset + numel].view_as(param))
-                offset += numel
+        add_flat_update_(trainable_params(self.param_groups), update)
 
     def step(self, closure = None):
 
@@ -114,22 +92,3 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         # -> returning loss, mu can be controled by
         #  optimizer.mu before running optimizer.step(...)
         return self.loss(closure()).item()
-
-# helpful code
-def jacobian(params, target):
-    numel = sum(p.numel() for p in params if p.requires_grad)
-    
-    J = torch.empty(target.shape[0], numel)
-    for i in range(target.shape[0]):
-        J[i] = torch.hstack([d.view(1, -1) if d is not None else torch.tensor([0.]).view(1, -1) for d in grad(target[i], params, create_graph=True, retain_graph=True, allow_unused=True)])
-
-    return J
-
-def update_weights(param_groups, updates):
-    updates = updates.view(-1)
-
-    start_idx = 0
-    for group in param_groups:
-        for param in group['params']:
-            param.data.add_(updates[start_idx:start_idx + param.numel()].view(param.size()))
-            start_idx += param.numel()

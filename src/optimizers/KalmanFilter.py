@@ -1,5 +1,9 @@
 import torch
 
+from ._utils import add_flat_update_
+from ._utils import residual_sum_squares
+from ._utils import trainable_params
+
 
 class KalmanFilter(torch.optim.Optimizer):
     # only one parameter group can be used!
@@ -16,34 +20,23 @@ class KalmanFilter(torch.optim.Optimizer):
         
         super(KalmanFilter, self).__init__(params, defaults)
 
-        self.numel = sum(param.numel() for group in self.param_groups for param in group['params'] if param.requires_grad)
+        params = trainable_params(self.param_groups)
+        self.numel = sum(param.numel() for param in params)
 
         if self.numel == 0:
             raise ValueError("KalmanFilter requires at least one trainable parameter")
 
-        prototype = next(
-            param for group in self.param_groups for param in group['params'] if param.requires_grad
-        )
+        prototype = params[0]
 
         self.P = torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
         self.Q = self.q * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
 
     def loss(self, errors):
-        # MSE loss, not divided by number of data, doesn't matter
-        return errors @ errors
+        return residual_sum_squares(errors)
     
     @torch.no_grad()
     def update_weights(self, updates):
-        # maybe could be optimzed using torch.chunk
-        # Add the updates into the model
-        start_idx = 0
-        for group in self.param_groups:
-            for param in group['params']:
-                if not param.requires_grad:
-                    continue
-
-                param.data.add_(updates[start_idx:start_idx + param.numel()].view(param.size()))
-                start_idx += param.numel()
+        add_flat_update_(trainable_params(self.param_groups), updates)
 
     def step(self, closure = None):
 
