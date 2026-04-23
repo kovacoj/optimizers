@@ -10,13 +10,11 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
     # only one parameter group can be used!
     # add @property q(t)
     def __init__(self, params, eta = 1e3, eps = 1e-3, q = 1e-6, tau = 1):
-        self.eta, self.eps, self.q, self.tau = eta, eps, q, tau
-
         defaults = dict(
-                    eta = self.eta,
-                    eps = self.eps,
-                    q = self.q,
-                    tau = self.tau
+                    eta = eta,
+                    eps = eps,
+                    q = q,
+                    tau = tau
                 )
         
         super(ExtendedKalmanFilter, self).__init__(params, defaults)
@@ -27,10 +25,56 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
         if self.numel == 0:
             raise ValueError("ExtendedKalmanFilter requires at least one trainable parameter")
 
-        prototype = params[0]
+        self.state[params[0]]['P'] = torch.eye(
+            self.numel,
+            device=params[0].device,
+            dtype=params[0].dtype,
+        )
 
-        self.P = torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
-        self.Q = self.q * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
+    @property
+    def eta(self):
+        return self.param_groups[0]['eta']
+
+    @eta.setter
+    def eta(self, value):
+        self.param_groups[0]['eta'] = value
+
+    @property
+    def eps(self):
+        return self.param_groups[0]['eps']
+
+    @eps.setter
+    def eps(self, value):
+        self.param_groups[0]['eps'] = value
+
+    @property
+    def q(self):
+        return self.param_groups[0]['q']
+
+    @q.setter
+    def q(self, value):
+        self.param_groups[0]['q'] = value
+
+    @property
+    def tau(self):
+        return self.param_groups[0]['tau']
+
+    @tau.setter
+    def tau(self, value):
+        self.param_groups[0]['tau'] = value
+
+    @property
+    def P(self):
+        return self.state[trainable_params(self.param_groups)[0]]['P']
+
+    @P.setter
+    def P(self, value):
+        self.state[trainable_params(self.param_groups)[0]]['P'] = value
+
+    @property
+    def Q(self):
+        prototype = trainable_params(self.param_groups)[0]
+        return self.q * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
 
     def jacobian(self, targets):
         return residual_jacobian(targets, trainable_params(self.param_groups))

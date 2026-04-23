@@ -247,6 +247,29 @@ def test_extended_kalman_filter_step_ignores_frozen_parameter():
     assert x.item() == pytest.approx(2.0)
 
 
+def test_extended_kalman_filter_state_dict_restores_covariance():
+    x = _scalar_param()
+    optimizer = ExtendedKalmanFilter([x])
+    optimizer.step(lambda: x.view(-1))
+
+    state_dict = optimizer.state_dict()
+
+    y = _scalar_param()
+    restored = ExtendedKalmanFilter([y])
+    restored.load_state_dict(state_dict)
+
+    assert torch.equal(optimizer.P, restored.P)
+
+
+def test_extended_kalman_filter_q_update_changes_Q():
+    x = _scalar_param()
+    optimizer = ExtendedKalmanFilter([x], q=1.0)
+
+    optimizer.q = 5.0
+
+    assert optimizer.Q[0, 0].item() == pytest.approx(5.0)
+
+
 def test_kalman_filter_step_runs():
     x = _scalar_param()
     optimizer = KalmanFilter([x])
@@ -275,3 +298,29 @@ def test_kalman_filter_step_ignores_frozen_parameter():
 
     assert isinstance(loss, torch.Tensor)
     assert x.item() == pytest.approx(2.0)
+
+
+def test_kalman_filter_state_dict_restores_covariance():
+    x = _scalar_param()
+    optimizer = KalmanFilter([x])
+
+    def closure():
+        return x.view(-1), torch.eye(1, device=x.device, dtype=x.dtype)
+
+    optimizer.step(closure)
+    state_dict = optimizer.state_dict()
+
+    y = _scalar_param()
+    restored = KalmanFilter([y])
+    restored.load_state_dict(state_dict)
+
+    assert torch.equal(optimizer.P, restored.P)
+
+
+def test_kalman_filter_q_update_changes_Q():
+    x = _scalar_param()
+    optimizer = KalmanFilter([x], q=1.0)
+
+    optimizer.q = 5.0
+
+    assert optimizer.Q[0, 0].item() == pytest.approx(5.0)
