@@ -1,4 +1,5 @@
 import torch
+import pytest
 
 from optimizers import Annealing
 from optimizers import ExtendedKalmanFilter
@@ -22,6 +23,25 @@ def test_newton_step_runs():
     optimizer = Newton([x])
 
     optimizer.step(lambda: (x ** 2).sum())
+
+
+def test_newton_step_runs_with_float64():
+    x = torch.nn.Parameter(torch.tensor([1.0], dtype=torch.float64))
+    optimizer = Newton([x])
+
+    optimizer.step(lambda: (x ** 2).sum())
+
+
+def test_newton_rejects_multiple_param_groups():
+    x = _scalar_param()
+    y = _scalar_param(2.0)
+    optimizer = Newton([
+        {"params": [x]},
+        {"params": [y]},
+    ])
+
+    with pytest.raises(AssertionError):
+        optimizer.step(lambda: (x ** 2).sum() + (y ** 2).sum())
 
 
 def test_annealing_step_runs():
@@ -55,6 +75,15 @@ def test_genetic_step_runs_with_small_population():
 
 def test_levenberg_marquardt_step_runs():
     x = _scalar_param()
+    optimizer = LevenbergMarquardt([x])
+
+    loss = optimizer.step(lambda: x.view(-1))
+
+    assert isinstance(loss, float)
+
+
+def test_levenberg_marquardt_step_runs_with_float64():
+    x = torch.nn.Parameter(torch.tensor([1.0], dtype=torch.float64))
     optimizer = LevenbergMarquardt([x])
 
     loss = optimizer.step(lambda: x.view(-1))

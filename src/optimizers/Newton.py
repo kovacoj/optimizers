@@ -29,16 +29,20 @@ class Newton(torch.optim.Optimizer):
                 offset += numel
 
     def step(self, closure: callable):
+        assert len(self.param_groups) == 1
+
+        prototype = self.param_groups[0]['params'][0]
+
         grads = grad(closure(), self.param_groups[0]['params'], create_graph=True)
 
         g = torch.cat([g.reshape(-1) for g in grads])
-        H = torch.empty(self.numel, self.numel)
+        H = prototype.new_empty(self.numel, self.numel)
 
         for idx in range(g.shape[0]):
             H[idx] = torch.hstack([
                 d.view(1, -1) for d in grad(g[idx], self.param_groups[0]['params'], create_graph=True, retain_graph=True)
             ])
-        H += 1e-4 * torch.eye(self.numel) # damping for num. stability
+        H += 1e-4 * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype) # damping for num. stability
 
         self.update_weights(
             torch.linalg.solve(H, -g)
