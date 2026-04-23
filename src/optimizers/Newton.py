@@ -7,8 +7,11 @@ class Newton(torch.optim.Optimizer):
         super().__init__(params, {})
 
         self.numel = sum(
-            p.numel() for group in self.param_groups for p in group['params']
+            p.numel() for group in self.param_groups for p in group['params'] if p.requires_grad
         )
+
+        if self.numel == 0:
+            raise ValueError("Newton requires at least one trainable parameter")
     
     @property
     def params(self):
@@ -23,6 +26,9 @@ class Newton(torch.optim.Optimizer):
         offset = 0
         for group in self.param_groups:
             for param in group['params']:
+                if not param.requires_grad:
+                    continue
+
                 numel = param.numel()
 
                 param.add_(update[offset: offset + numel].view_as(param))
@@ -31,9 +37,8 @@ class Newton(torch.optim.Optimizer):
     def step(self, closure: callable):
         assert len(self.param_groups) == 1
 
-        prototype = self.param_groups[0]['params'][0]
-
-        params = self.param_groups[0]['params']
+        params = [param for param in self.param_groups[0]['params'] if param.requires_grad]
+        prototype = params[0]
         grads = grad(closure(), params, create_graph=True, allow_unused=True)
 
         g = torch.cat([

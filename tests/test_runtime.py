@@ -55,6 +55,17 @@ def test_newton_step_ignores_unused_trainable_parameter():
     assert y.item() == pytest.approx(2.0)
 
 
+def test_newton_step_ignores_frozen_parameter():
+    x = torch.nn.Parameter(torch.tensor([2.0]), requires_grad=False)
+    y = _scalar_param()
+    optimizer = Newton([x, y])
+
+    optimizer.step(lambda: (y ** 2).sum())
+
+    assert x.item() == pytest.approx(2.0)
+    assert y.item() != 1.0
+
+
 def test_annealing_step_runs():
     x = _scalar_param()
     optimizer = Annealing([x])
@@ -122,6 +133,17 @@ def test_levenberg_marquardt_step_runs_with_zero_line_search_steps():
     assert isinstance(loss, float)
 
 
+def test_levenberg_marquardt_step_ignores_frozen_parameter():
+    x = torch.nn.Parameter(torch.tensor([2.0]), requires_grad=False)
+    y = _scalar_param()
+    optimizer = LevenbergMarquardt([x, y])
+
+    loss = optimizer.step(lambda: y.view(-1))
+
+    assert isinstance(loss, float)
+    assert x.item() == pytest.approx(2.0)
+
+
 def test_extended_kalman_filter_step_runs():
     x = _scalar_param()
     optimizer = ExtendedKalmanFilter([x])
@@ -129,6 +151,17 @@ def test_extended_kalman_filter_step_runs():
     loss = optimizer.step(lambda: x.view(-1))
 
     assert isinstance(loss, torch.Tensor)
+
+
+def test_extended_kalman_filter_step_ignores_frozen_parameter():
+    x = torch.nn.Parameter(torch.tensor([2.0]), requires_grad=False)
+    y = _scalar_param()
+    optimizer = ExtendedKalmanFilter([x, y])
+
+    loss = optimizer.step(lambda: y.view(-1))
+
+    assert isinstance(loss, torch.Tensor)
+    assert x.item() == pytest.approx(2.0)
 
 
 def test_kalman_filter_step_runs():
@@ -143,3 +176,19 @@ def test_kalman_filter_step_runs():
     loss = optimizer.step(closure)
 
     assert isinstance(loss, torch.Tensor)
+
+
+def test_kalman_filter_step_ignores_frozen_parameter():
+    x = torch.nn.Parameter(torch.tensor([2.0]), requires_grad=False)
+    y = _scalar_param()
+    optimizer = KalmanFilter([x, y])
+
+    def closure():
+        errors = y.view(-1)
+        H = torch.eye(1, device=y.device, dtype=y.dtype)
+        return errors, H
+
+    loss = optimizer.step(closure)
+
+    assert isinstance(loss, torch.Tensor)
+    assert x.item() == pytest.approx(2.0)
