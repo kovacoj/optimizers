@@ -11,7 +11,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     # need to add comments
     # update defaults
     # add loss history; batches can be controled from closure()
-    def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10, strategy = "heuristic"):
+    def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10, strategy = "line search"):
         defaults = dict(mu = mu,
                         mu_factor = mu_factor,
                         m_max = m_max,
@@ -27,10 +27,25 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         if self.numel == 0:
             raise ValueError("LevenbergMarquardt requires at least one trainable parameter")
 
-        if self.strategy not in {"heuristic", "trust_region"}:
-            raise ValueError("LevenbergMarquardt strategy must be 'heuristic' or 'trust_region'")
+        self.strategy = strategy
 
         self.prototype = params[0]
+
+    def _canonical_strategy(self, value):
+        aliases = {
+            "line search": "line search",
+            "trust region": "trust region",
+            "line_search": "line search",
+            "trust_region": "trust region",
+            "heuristic": "line search",
+        }
+
+        if value not in aliases:
+            raise ValueError(
+                "LevenbergMarquardt strategy must be 'line search' or 'trust region'"
+            )
+
+        return aliases[value]
 
     @property
     def mu(self):
@@ -58,11 +73,11 @@ class LevenbergMarquardt(torch.optim.Optimizer):
 
     @property
     def strategy(self):
-        return self.param_groups[0]['strategy']
+        return self._canonical_strategy(self.param_groups[0]['strategy'])
 
     @strategy.setter
     def strategy(self, value):
-        self.param_groups[0]['strategy'] = value
+        self.param_groups[0]['strategy'] = self._canonical_strategy(value)
 
     # @torch.compile ?
     def jacobian(self, targets):
@@ -84,7 +99,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         )
         return -torch.linalg.solve(system, J.T @ errors)
 
-    def _step_heuristic(self, closure, J, errors, base_loss):
+    def _step_line_search(self, closure, J, errors, base_loss):
         updates = self._lm_step(J, errors)
 
         self.update_weights(updates)
@@ -152,7 +167,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         # compute Jacobian matrix
         J = self.jacobian(errors)
 
-        if self.strategy == "trust_region":
+        if self.strategy == "trust region":
             return self._step_trust_region(closure, J, errors, base_loss)
 
-        return self._step_heuristic(closure, J, errors, base_loss)
+        return self._step_line_search(closure, J, errors, base_loss)

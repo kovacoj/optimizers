@@ -291,9 +291,21 @@ def test_levenberg_marquardt_state_dict_restores_mu():
     assert restored.mu == pytest.approx(optimizer.mu)
 
 
+def test_levenberg_marquardt_strategy_uses_line_search_name():
+    optimizer = LevenbergMarquardt([_scalar_param()])
+
+    assert optimizer.strategy == "line search"
+
+
+def test_levenberg_marquardt_accepts_heuristic_alias():
+    optimizer = LevenbergMarquardt([_scalar_param()], strategy="heuristic")
+
+    assert optimizer.strategy == "line search"
+
+
 def test_levenberg_marquardt_trust_region_step_runs():
     x = _scalar_param()
-    optimizer = LevenbergMarquardt([x], strategy="trust_region")
+    optimizer = LevenbergMarquardt([x], strategy="trust region")
 
     loss = optimizer.step(lambda: x.view(-1))
 
