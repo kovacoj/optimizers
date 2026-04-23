@@ -7,8 +7,14 @@ from ._utils import trainable_params
 
 
 class ExtendedKalmanFilter(torch.optim.Optimizer):
-    # only one parameter group can be used!
-    # add @property q(t)
+    """Extended Kalman filter optimizer for residual-vector closures.
+
+    This optimizer assumes a single parameter group and expects `closure()` to
+    return a 1D tensor of residuals. The Kalman covariance `P` is persistent
+    optimizer state, while `eta`, `eps`, `q`, and `tau` are live properties on
+    the single param group.
+    """
+
     def __init__(self, params, eta = 1e3, eps = 1e-3, q = 1e-6, tau = 1):
         defaults = dict(
                     eta = eta,
@@ -90,11 +96,8 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
 
         assert len(self.param_groups) == 1
 
-        # Make sure the closure is always called with grad enabled
         closure = torch.enable_grad()(closure)
 
-        # errors need to be computed from closure
-        # closure (callable) - reevaluates the model and returns the loss, in our case the errors
         errors = closure()
         
         H = self.jacobian(errors)

@@ -6,8 +6,14 @@ from ._utils import trainable_params
 
 
 class KalmanFilter(torch.optim.Optimizer):
-    # only one parameter group can be used!
-    # closure() returns (errors, H)
+    """Kalman filter optimizer for linear residual closures.
+
+    This optimizer assumes a single parameter group and expects `closure()` to
+    return `(errors, H)`, where `errors` is a residual vector and `H` is the
+    linear observation matrix. The covariance `P` is persistent optimizer
+    state, while `eta`, `eps`, `q`, and `tau` are live param-group properties.
+    """
+
     def __init__(self, params, eta = 1e3, eps = 1e-3, q = 1e-6, tau = 1):
         defaults = dict(
                     eta = eta,
@@ -86,10 +92,8 @@ class KalmanFilter(torch.optim.Optimizer):
 
         assert len(self.param_groups) == 1
 
-        # Make sure the closure is always called with grad enabled
         closure = torch.enable_grad()(closure)
 
-        # closure (callable) - reevaluates the model and returns the residuals and linear observation matrix
         errors, H = closure()
         errors = errors.view(-1)
 
