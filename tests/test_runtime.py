@@ -291,6 +291,15 @@ def test_levenberg_marquardt_state_dict_restores_mu():
     assert restored.mu == pytest.approx(optimizer.mu)
 
 
+def test_levenberg_marquardt_trust_region_step_runs():
+    x = _scalar_param()
+    optimizer = LevenbergMarquardt([x], strategy="trust_region")
+
+    loss = optimizer.step(lambda: x.view(-1))
+
+    assert isinstance(loss, float)
+
+
 def test_extended_kalman_filter_step_runs():
     x = _scalar_param()
     optimizer = ExtendedKalmanFilter([x])

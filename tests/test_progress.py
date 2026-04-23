@@ -59,6 +59,22 @@ def test_levenberg_marquardt_reduces_residual_loss():
     assert after < before
 
 
+def test_levenberg_marquardt_trust_region_reduces_residual_loss():
+    x = _vector_param()
+    optimizer = LevenbergMarquardt([x], strategy="trust_region")
+
+    with torch.no_grad():
+        before = _residual_loss(x).item()
+
+    for _ in range(5):
+        optimizer.step(lambda: _residuals(x))
+
+    with torch.no_grad():
+        after = _residual_loss(x).item()
+
+    assert after < before
+
+
 def test_extended_kalman_filter_reduces_residual_loss():
     x = _vector_param()
     optimizer = ExtendedKalmanFilter([x])

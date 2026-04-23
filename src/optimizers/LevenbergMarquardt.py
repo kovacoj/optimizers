@@ -11,10 +11,11 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     # need to add comments
     # update defaults
     # add loss history; batches can be controled from closure()
-    def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10):
+    def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10, strategy = "heuristic"):
         defaults = dict(mu = mu,
                         mu_factor = mu_factor,
-                        m_max = m_max
+                        m_max = m_max,
+                        strategy = strategy,
                     )
         
         super(LevenbergMarquardt, self).__init__(params, defaults)
@@ -25,6 +26,9 @@ class LevenbergMarquardt(torch.optim.Optimizer):
 
         if self.numel == 0:
             raise ValueError("LevenbergMarquardt requires at least one trainable parameter")
+
+        if self.strategy not in {"heuristic", "trust_region"}:
+            raise ValueError("LevenbergMarquardt strategy must be 'heuristic' or 'trust_region'")
 
         self.prototype = params[0]
 
@@ -52,6 +56,14 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     def m_max(self, value):
         self.param_groups[0]['m_max'] = value
 
+    @property
+    def strategy(self):
+        return self.param_groups[0]['strategy']
+
+    @strategy.setter
+    def strategy(self, value):
+        self.param_groups[0]['strategy'] = value
+
     # @torch.compile ?
     def jacobian(self, targets):
         return residual_jacobian(targets, trainable_params(self.param_groups))
@@ -63,6 +75,67 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     @torch.no_grad()
     def update_weights(self, update):
         add_flat_update_(trainable_params(self.param_groups), update)
+
+    def _lm_step(self, J, errors):
+        system = J.T @ J + (self.mu + 1e-8) * torch.eye(
+            self.numel,
+            device=self.prototype.device,
+            dtype=self.prototype.dtype,
+        )
+        return -torch.linalg.solve(system, J.T @ errors)
+
+    def _step_heuristic(self, closure, J, errors, base_loss):
+        updates = self._lm_step(J, errors)
+
+        self.update_weights(updates)
+
+        loss_decreased = self.loss(closure()) < base_loss
+        for _ in range(self.m_max):
+            if loss_decreased:
+                break
+
+            self.update_weights(update = -updates)
+
+            self.mu *= self.mu_factor
+            updates = self._lm_step(J, errors)
+            self.update_weights(update = +updates)
+
+            loss_decreased = self.loss(closure()) < base_loss
+
+        if loss_decreased:
+            self.mu /= self.mu_factor
+        else:
+            self.update_weights(update = -updates)
+
+        return self.loss(closure()).item()
+
+    def _step_trust_region(self, closure, J, errors, base_loss):
+        gradient = J.T @ errors
+        nu = 2.0
+
+        for _ in range(self.m_max + 1):
+            updates = self._lm_step(J, errors)
+            predicted_reduction = updates @ ((self.mu + 1e-8) * updates - gradient)
+
+            if predicted_reduction <= 0:
+                self.mu *= nu
+                nu *= 2.0
+                continue
+
+            self.update_weights(updates)
+            new_loss = self.loss(closure())
+            actual_reduction = base_loss - new_loss
+            rho = actual_reduction / predicted_reduction
+
+            if rho > 0:
+                self.mu *= max(1 / 3, 1 - (2 * rho - 1) ** 3)
+                return new_loss.item()
+
+            self.update_weights(-updates)
+            self.mu *= nu
+            nu *= 2.0
+
+        return base_loss.item()
 
     def step(self, closure = None):
 
@@ -79,36 +152,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         # compute Jacobian matrix
         J = self.jacobian(errors)
 
-        # compute updates %torch.diag(J.T @ J)%
-        updates = -torch.inverse(J.T @ J + (self.mu+1e-8)*torch.eye(self.numel, device=self.prototype.device, dtype=self.prototype.dtype)) @ J.T @ errors
+        if self.strategy == "trust_region":
+            return self._step_trust_region(closure, J, errors, base_loss)
 
-        self.update_weights(updates)
-
-        # line search for mu
-        loss_decreased = self.loss(closure()) < base_loss
-        for _ in range(self.m_max):
-            if loss_decreased:
-                break
-
-            # restore weights
-            self.update_weights(update = -updates)
-
-            self.mu *= self.mu_factor
-
-            # compute new updates
-            updates = -torch.inverse(J.T @ J + (self.mu+1e-8)*torch.eye(self.numel, device=self.prototype.device, dtype=self.prototype.dtype)) @ J.T @ errors
-
-            # update weights
-            self.update_weights(update = +updates)
-
-            loss_decreased = self.loss(closure()) < base_loss
-
-        if loss_decreased:
-            self.mu /= self.mu_factor
-        else:
-            self.update_weights(update = -updates)
-
-        # how to return break?, should I return loss?
-        # -> returning loss, mu can be controled by
-        #  optimizer.mu before running optimizer.step(...)
-        return self.loss(closure()).item()
+        return self._step_heuristic(closure, J, errors, base_loss)
