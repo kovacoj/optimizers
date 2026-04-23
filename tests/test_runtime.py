@@ -125,6 +125,21 @@ def test_annealing_step_ignores_frozen_parameter():
     assert x.item() == pytest.approx(2.0)
 
 
+def test_annealing_state_dict_restores_temperature():
+    x = _scalar_param()
+    optimizer = Annealing([x])
+    optimizer.step(lambda: (x ** 2).sum())
+
+    state_dict = optimizer.state_dict()
+
+    y = _scalar_param()
+    restored = Annealing([y])
+    restored.load_state_dict(state_dict)
+
+    assert state_dict['param_groups'][0]['temperature'] == pytest.approx(optimizer.temperature)
+    assert restored.temperature == pytest.approx(optimizer.temperature)
+
+
 def test_metropolis_step_ignores_frozen_parameter(monkeypatch):
     x = torch.nn.Parameter(torch.tensor([2.0]), requires_grad=False)
     y = _scalar_param()
@@ -137,6 +152,21 @@ def test_metropolis_step_ignores_frozen_parameter(monkeypatch):
 
     assert x.item() == pytest.approx(2.0)
     assert y.item() == pytest.approx(0.0)
+
+
+def test_metropolis_state_dict_restores_temperature():
+    x = _scalar_param()
+    optimizer = Metropolis([x])
+    optimizer.step(lambda: (x ** 2).sum())
+
+    state_dict = optimizer.state_dict()
+
+    y = _scalar_param()
+    restored = Metropolis([y])
+    restored.load_state_dict(state_dict)
+
+    assert state_dict['param_groups'][0]['temperature'] == pytest.approx(optimizer.temperature)
+    assert restored.temperature == pytest.approx(optimizer.temperature)
 
 
 def test_genetic_step_ignores_frozen_parameter():
