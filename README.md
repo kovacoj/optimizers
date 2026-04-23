@@ -4,8 +4,9 @@
 
 A set of mostly quasi-Newton optimizers for PyTorch.
 
-Initial aim was academic; the speedup gained is coupled with higher memory requirements. Therefore the quasi-Netwon optimizers should be used on small systems.
-The genetic algorithms are basically totally useless and if they're solving a specific problem, the problem should be reformulated into such that a gradient-based optimization can be used.
+This project started as an academic experiment. The quasi-Newton methods can speed up convergence, but they do so at the cost of higher memory usage, so they are best suited to relatively small systems.
+
+The genetic and sampling-based optimizers are included for completeness, but in most practical settings they are not a good choice. If you find yourself reaching for them because you want more variance or exploration in the weight updates, consider using `ExtendedKalmanFilter` instead: increasing its process noise parameter `q` (or decreasing the forgetting factor `tau`) inflates the state covariance `P`, which increases the Kalman gain and produces larger, more exploratory steps — a gradient-based alternative to stochastic search.
 
 ## Install with uv
 
