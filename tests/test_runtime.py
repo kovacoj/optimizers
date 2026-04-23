@@ -227,6 +227,21 @@ def test_levenberg_marquardt_restores_weights_when_line_search_fails():
     assert x.item() == pytest.approx(-2.9)
 
 
+def test_levenberg_marquardt_state_dict_restores_mu():
+    x = _scalar_param()
+    optimizer = LevenbergMarquardt([x], mu=1.0, mu_factor=10, m_max=1)
+
+    optimizer.step(lambda: torch.tensor([10.0]) * x.view(-1))
+    state_dict = optimizer.state_dict()
+
+    y = _scalar_param()
+    restored = LevenbergMarquardt([y], mu=99.0, mu_factor=2, m_max=3)
+    restored.load_state_dict(state_dict)
+
+    assert state_dict['param_groups'][0]['mu'] == pytest.approx(optimizer.mu)
+    assert restored.mu == pytest.approx(optimizer.mu)
+
+
 def test_extended_kalman_filter_step_runs():
     x = _scalar_param()
     optimizer = ExtendedKalmanFilter([x])
