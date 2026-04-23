@@ -1,5 +1,8 @@
 import torch
 from .Newton import Newton
+from ._utils import flat_params
+from ._utils import load_flat_params_
+from ._utils import trainable_params
 
 
 class Genetic(torch.optim.Optimizer):
@@ -10,13 +13,18 @@ class Genetic(torch.optim.Optimizer):
         self.mutation_strength = 0.1
         self.elite_ratio = 0.2
 
+        params = trainable_params(self.param_groups)
+        self.numel = sum(
+            param.numel() for param in params
+        )
+
+        if self.numel == 0:
+            raise ValueError("Genetic requires at least one trainable parameter")
+
+        self.pop_size = 100 # max(int(self.numel**0.5), 10)
+
         self.best_genome = self.params
         self.best_fitness = float('inf')
-
-        self.numel = sum(
-            p.numel() for group in self.param_groups for p in group['params']
-        )
-        self.pop_size = 100 # max(int(self.numel**0.5), 10)
 
         self.population = self.params.unsqueeze(0).repeat(self.pop_size, 1)
         self.population += torch.randn_like(self.population) * 1e-0
@@ -26,21 +34,11 @@ class Genetic(torch.optim.Optimizer):
 
     @property
     def params(self):
-        return torch.cat([
-            p.flatten() for group in self.param_groups for p in group['params']
-        ])
+        return flat_params(trainable_params(self.param_groups))
 
     @torch.no_grad
     def update_weights(self, update):
-        update = update.flatten()
-
-        offset = 0
-        for group in self.param_groups:
-            for param in group['params']:
-                numel = param.numel()
-
-                param.data = update[offset: offset + numel].view_as(param)
-                offset += numel
+        load_flat_params_(trainable_params(self.param_groups), update)
 
     @torch.no_grad
     def mutate(self, genome):

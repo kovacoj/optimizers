@@ -1,32 +1,31 @@
 import torch
 
+from ._utils import flat_params
+from ._utils import load_flat_params_
+from ._utils import trainable_params
+
 
 class Annealing(torch.optim.Optimizer):
     def __init__(self, params):
         super().__init__(params, {}) 
 
+        params = trainable_params(self.param_groups)
         self.numel = sum(
-            p.numel() for group in self.param_groups for p in group['params']
+            param.numel() for param in params
         )
+
+        if self.numel == 0:
+            raise ValueError("Annealing requires at least one trainable parameter")
+
         self.temperature = 1
 
     @property
     def params(self):
-        return torch.cat([
-            p.flatten() for group in self.param_groups for p in group['params']
-        ])
+        return flat_params(trainable_params(self.param_groups))
 
     @torch.no_grad
     def update_weights(self, update):
-        update = update.flatten()
-
-        offset = 0
-        for group in self.param_groups:
-            for param in group['params']:
-                numel = param.numel()
-
-                param.data = update[offset: offset + numel].view_as(param)
-                offset += numel
+        load_flat_params_(trainable_params(self.param_groups), update)
 
     @torch.no_grad
     def mutate(self):

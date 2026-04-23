@@ -11,6 +11,22 @@ def trainable_params(param_groups):
     ]
 
 
+def flat_params(params):
+    return torch.cat([param.flatten() for param in params])
+
+
+@torch.no_grad()
+def load_flat_params_(params, values):
+    values = values.view(-1)
+
+    offset = 0
+    for param in params:
+        numel = param.numel()
+
+        param.copy_(values[offset: offset + numel].view_as(param))
+        offset += numel
+
+
 @torch.no_grad()
 def add_flat_update_(params, update):
     update = update.view(-1)
