@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Non-standard optimizers for PyTorch"
 readme = "README.md"
 license = "MIT"
+authors = [
+    {name = "kovacoj"},
+]
 requires-python = ">=3.13"
 dependencies = [
     "torch>=2.9.1",
