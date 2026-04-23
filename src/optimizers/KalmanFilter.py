@@ -18,7 +18,12 @@ class KalmanFilter(torch.optim.Optimizer):
 
         self.numel = sum(param.numel() for group in self.param_groups for param in group['params'] if param.requires_grad)
 
-        prototype = self.param_groups[0]['params'][0]
+        if self.numel == 0:
+            raise ValueError("KalmanFilter requires at least one trainable parameter")
+
+        prototype = next(
+            param for group in self.param_groups for param in group['params'] if param.requires_grad
+        )
 
         self.P = torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
         self.Q = self.q * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
@@ -34,6 +39,9 @@ class KalmanFilter(torch.optim.Optimizer):
         start_idx = 0
         for group in self.param_groups:
             for param in group['params']:
+                if not param.requires_grad:
+                    continue
+
                 param.data.add_(updates[start_idx:start_idx + param.numel()].view(param.size()))
                 start_idx += param.numel()
 
