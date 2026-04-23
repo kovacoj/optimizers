@@ -3,6 +3,7 @@ import torch
 from optimizers import Annealing
 from optimizers import ExtendedKalmanFilter
 from optimizers import Genetic
+from optimizers import KalmanFilter
 from optimizers import LevenbergMarquardt
 from optimizers import Newton
 from optimizers.Metropolis import Metropolis
@@ -66,5 +67,19 @@ def test_extended_kalman_filter_step_runs():
     optimizer = ExtendedKalmanFilter([x])
 
     loss = optimizer.step(lambda: x.view(-1))
+
+    assert isinstance(loss, torch.Tensor)
+
+
+def test_kalman_filter_step_runs():
+    x = _scalar_param()
+    optimizer = KalmanFilter([x])
+
+    def closure():
+        errors = x.view(-1)
+        H = torch.eye(1, device=x.device, dtype=x.dtype)
+        return errors, H
+
+    loss = optimizer.step(closure)
 
     assert isinstance(loss, torch.Tensor)
