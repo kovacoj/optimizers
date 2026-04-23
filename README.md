@@ -1,3 +1,7 @@
+# optimizers
+
+[![Tests](https://github.com/kovacoj/optimizers/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/kovacoj/optimizers/actions/workflows/tests.yml)
+
 Repository of not very useful optimizers in `PyTorch`.
 
 ## Install with uv
@@ -37,4 +41,4 @@ Because this repository uses a `src` layout, importing directly from the repo ch
 from optimizers import KalmanFilter
 ```
 
-`KalmanFilter` is an alias for `ExtendedKalmanFilter`.
+`KalmanFilter` expects `closure()` to return `(errors, H)`, while `ExtendedKalmanFilter` computes the Jacobian from a residual-vector closure.
