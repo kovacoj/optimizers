@@ -1,32 +1,17 @@
 import torch
 
+from ._utils import _FlatParamOptimizerMixin
+from ._utils import all_params
 
-class Annealing(torch.optim.Optimizer):
+
+class Annealing(_FlatParamOptimizerMixin, torch.optim.Optimizer):
     def __init__(self, params):
         super().__init__(params, {}) 
 
         self.numel = sum(
-            p.numel() for group in self.param_groups for p in group['params']
+            param.numel() for param in all_params(self.param_groups)
         )
         self.temperature = 1
-
-    @property
-    def params(self):
-        return torch.cat([
-            p.flatten() for group in self.param_groups for p in group['params']
-        ])
-
-    @torch.no_grad
-    def update_weights(self, update):
-        update = update.flatten()
-
-        offset = 0
-        for group in self.param_groups:
-            for param in group['params']:
-                numel = param.numel()
-
-                param.data = update[offset: offset + numel].view_as(param)
-                offset += numel
 
     @torch.no_grad
     def mutate(self):

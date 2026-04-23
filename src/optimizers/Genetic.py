@@ -1,8 +1,10 @@
 import torch
 from .Newton import Newton
+from ._utils import _FlatParamOptimizerMixin
+from ._utils import all_params
 
 
-class Genetic(torch.optim.Optimizer):
+class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
     def __init__(self, params):
         super().__init__(params, {}) 
 
@@ -14,7 +16,7 @@ class Genetic(torch.optim.Optimizer):
         self.best_fitness = float('inf')
 
         self.numel = sum(
-            p.numel() for group in self.param_groups for p in group['params']
+            param.numel() for param in all_params(self.param_groups)
         )
         self.pop_size = 100 # max(int(self.numel**0.5), 10)
 
@@ -23,24 +25,6 @@ class Genetic(torch.optim.Optimizer):
 
         self.helper = torch.optim.Adam(self.param_groups)
         # self.helper = Newton(self.param_groups[0]['params'])
-
-    @property
-    def params(self):
-        return torch.cat([
-            p.flatten() for group in self.param_groups for p in group['params']
-        ])
-
-    @torch.no_grad
-    def update_weights(self, update):
-        update = update.flatten()
-
-        offset = 0
-        for group in self.param_groups:
-            for param in group['params']:
-                numel = param.numel()
-
-                param.data = update[offset: offset + numel].view_as(param)
-                offset += numel
 
     @torch.no_grad
     def mutate(self, genome):
