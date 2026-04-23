@@ -4,13 +4,19 @@ from ._utils import add_flat_update_
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
 from ._utils import trainable_params
-    
+
 
 class LevenbergMarquardt(torch.optim.Optimizer):
-    # only one parameter group can be used!
-    # need to add comments
-    # update defaults
-    # add loss history; batches can be controled from closure()
+    """Levenberg-Marquardt optimizer for residual-vector closures.
+
+    This optimizer assumes a single parameter group and expects `closure()` to
+    return a 1D tensor of residuals. The `strategy` argument selects between a
+    line-search style damping update and a trust-region gain-ratio update.
+
+    `step()` returns the final residual sum of squares as a Python float, so
+    callers can keep any loss history externally.
+    """
+
     def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10, strategy = "line search"):
         defaults = dict(mu = mu,
                         mu_factor = mu_factor,
@@ -79,7 +85,6 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     def strategy(self, value):
         self.param_groups[0]['strategy'] = self._canonical_strategy(value)
 
-    # @torch.compile ?
     def jacobian(self, targets):
         return residual_jacobian(targets, trainable_params(self.param_groups))
     
@@ -156,11 +161,8 @@ class LevenbergMarquardt(torch.optim.Optimizer):
 
         assert len(self.param_groups) == 1
 
-        # Make sure the closure is always called with grad enabled
         closure = torch.enable_grad()(closure)
 
-        # errors need to be computed from closure
-        # closure (callable) - reevaluates the model and returns the loss, in our case the errors
         errors = closure()
         base_loss = self.loss(errors)
         
