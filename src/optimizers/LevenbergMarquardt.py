@@ -12,13 +12,9 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     # update defaults
     # add loss history; batches can be controled from closure()
     def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10):
-        self.mu = mu
-        self.mu_factor = mu_factor
-        self.m_max = m_max
-
-        defaults = dict(mu = self.mu,
-                        mu_factor = self.mu_factor,
-                        m_max = self.m_max
+        defaults = dict(mu = mu,
+                        mu_factor = mu_factor,
+                        m_max = m_max
                     )
         
         super(LevenbergMarquardt, self).__init__(params, defaults)
@@ -31,6 +27,30 @@ class LevenbergMarquardt(torch.optim.Optimizer):
             raise ValueError("LevenbergMarquardt requires at least one trainable parameter")
 
         self.prototype = params[0]
+
+    @property
+    def mu(self):
+        return self.param_groups[0]['mu']
+
+    @mu.setter
+    def mu(self, value):
+        self.param_groups[0]['mu'] = value
+
+    @property
+    def mu_factor(self):
+        return self.param_groups[0]['mu_factor']
+
+    @mu_factor.setter
+    def mu_factor(self, value):
+        self.param_groups[0]['mu_factor'] = value
+
+    @property
+    def m_max(self):
+        return self.param_groups[0]['m_max']
+
+    @m_max.setter
+    def m_max(self, value):
+        self.param_groups[0]['m_max'] = value
 
     # @torch.compile ?
     def jacobian(self, targets):
