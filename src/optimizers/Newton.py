@@ -1,13 +1,17 @@
 import torch
 from torch.autograd import grad
 
+from ._utils import add_flat_update_
+from ._utils import trainable_params
+
 
 class Newton(torch.optim.Optimizer):
     def __init__(self, params):
         super().__init__(params, {})
 
+        params = trainable_params(self.param_groups)
         self.numel = sum(
-            p.numel() for group in self.param_groups for p in group['params'] if p.requires_grad
+            param.numel() for param in params
         )
 
         if self.numel == 0:
@@ -21,23 +25,12 @@ class Newton(torch.optim.Optimizer):
 
     @torch.no_grad()
     def update_weights(self, update):
-        update = update.flatten()
-
-        offset = 0
-        for group in self.param_groups:
-            for param in group['params']:
-                if not param.requires_grad:
-                    continue
-
-                numel = param.numel()
-
-                param.add_(update[offset: offset + numel].view_as(param))
-                offset += numel
+        add_flat_update_(trainable_params(self.param_groups), update)
 
     def step(self, closure: callable):
         assert len(self.param_groups) == 1
 
-        params = [param for param in self.param_groups[0]['params'] if param.requires_grad]
+        params = trainable_params(self.param_groups)
         prototype = params[0]
         grads = grad(closure(), params, create_graph=True, allow_unused=True)
 
