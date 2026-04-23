@@ -144,6 +144,21 @@ def test_levenberg_marquardt_step_ignores_frozen_parameter():
     assert x.item() == pytest.approx(2.0)
 
 
+def test_levenberg_marquardt_restores_weights_when_line_search_fails():
+    x = torch.nn.Parameter(torch.tensor([-2.9], dtype=torch.float64))
+    optimizer = LevenbergMarquardt([x], mu=1e-6, m_max=1)
+
+    def closure():
+        return torch.sin(5 * x).view(-1)
+
+    before = (closure() @ closure()).item()
+    optimizer.step(closure)
+    after = (closure() @ closure()).item()
+
+    assert after == pytest.approx(before)
+    assert x.item() == pytest.approx(-2.9)
+
+
 def test_extended_kalman_filter_step_runs():
     x = _scalar_param()
     optimizer = ExtendedKalmanFilter([x])

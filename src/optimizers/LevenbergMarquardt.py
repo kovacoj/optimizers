@@ -76,6 +76,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         # errors need to be computed from closure
         # closure (callable) - reevaluates the model and returns the loss, in our case the errors
         errors = closure()
+        base_loss = self.loss(errors)
         
         # compute Jacobian matrix
         J = self.jacobian(errors)
@@ -86,12 +87,9 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         self.update_weights(updates)
 
         # line search for mu
-        loss_decreased = False
+        loss_decreased = self.loss(closure()) < base_loss
         for _ in range(self.m_max):
-
-            # check if loss has decreased
-            if self.loss(closure()) < self.loss(errors):
-                loss_decreased = True
+            if loss_decreased:
                 break
 
             # restore weights
@@ -105,8 +103,12 @@ class LevenbergMarquardt(torch.optim.Optimizer):
             # update weights
             self.update_weights(update = +updates)
 
+            loss_decreased = self.loss(closure()) < base_loss
+
         if loss_decreased:
             self.mu /= self.mu_factor
+        else:
+            self.update_weights(update = -updates)
 
         # how to return break?, should I return loss?
         # -> returning loss, mu can be controled by
