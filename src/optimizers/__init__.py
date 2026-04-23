@@ -4,10 +4,13 @@ from .Annealing import Annealing
 from .LevenbergMarquardt import LevenbergMarquardt
 from .ExtendedKalmanFilter import ExtendedKalmanFilter
 
+KalmanFilter = ExtendedKalmanFilter
+
 __all__ = [
     "Genetic",
     "Newton",
     "Annealing",
     "LevenbergMarquardt",
-    "ExtendedKalmanFilter"
+    "ExtendedKalmanFilter",
+    "KalmanFilter",
 ]
