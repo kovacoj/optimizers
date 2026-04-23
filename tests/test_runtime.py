@@ -204,6 +204,25 @@ def test_genetic_step_runs_with_scalar_parameter_vector():
     assert isinstance(loss, torch.Tensor)
 
 
+def test_genetic_state_dict_restores_population_and_elite_state():
+    x = _scalar_param()
+    optimizer = Genetic([x])
+    optimizer.pop_size = 4
+    optimizer.population = optimizer.params.unsqueeze(0).repeat(optimizer.pop_size, 1)
+    optimizer.step(lambda: (x ** 2).sum())
+
+    state_dict = optimizer.state_dict()
+
+    y = _scalar_param()
+    restored = Genetic([y])
+    restored.load_state_dict(state_dict)
+
+    assert restored.pop_size == optimizer.pop_size
+    assert torch.equal(restored.population, optimizer.population)
+    assert torch.equal(restored.best_genome, optimizer.best_genome)
+    assert restored.best_fitness == pytest.approx(optimizer.best_fitness)
+
+
 def test_levenberg_marquardt_step_runs():
     x = _scalar_param()
     optimizer = LevenbergMarquardt([x])
