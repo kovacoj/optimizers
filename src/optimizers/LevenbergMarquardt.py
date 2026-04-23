@@ -22,13 +22,21 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         self.numel = sum(param.numel() for group in self.param_groups for param in group['params'] if param.requires_grad)
         # self.numel = reduce(lambda total, p: total + p.numel(), self.param_groups, 0)
 
+        self.prototype = self.param_groups[0]['params'][0]
+
     # @torch.compile ?
     def jacobian(self, targets):
         # needs to be tested (nn design)
-        J = torch.empty(targets.shape[0], self.numel)
+        J = targets.new_empty(targets.shape[0], self.numel)
         
         for i in range(targets.shape[0]):
-            J[i] = torch.hstack([d.view(1, -1) if d is not None else torch.tensor([0.]).view(1, -1) for d in grad(targets[i], self.param_groups[0]['params'], create_graph=True, retain_graph=True, allow_unused=True)])
+            J[i] = torch.hstack([
+                d.view(1, -1) if d is not None else param.new_zeros(1, param.numel())
+                for param, d in zip(
+                    self.param_groups[0]['params'],
+                    grad(targets[i], self.param_groups[0]['params'], create_graph=True, retain_graph=True, allow_unused=True)
+                )
+            ])
 
         return J
     
@@ -64,7 +72,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         J = self.jacobian(errors)
 
         # compute updates %torch.diag(J.T @ J)%
-        updates = -torch.inverse(J.T @ J + (self.mu+1e-8)*torch.eye(self.numel)) @ J.T @ errors
+        updates = -torch.inverse(J.T @ J + (self.mu+1e-8)*torch.eye(self.numel, device=self.prototype.device, dtype=self.prototype.dtype)) @ J.T @ errors
 
         self.update_weights(updates)
 
@@ -81,7 +89,7 @@ class LevenbergMarquardt(torch.optim.Optimizer):
             self.mu *= self.mu_factor
 
             # compute new updates
-            updates = -torch.inverse(J.T @ J + (self.mu+1e-8)*torch.eye(self.numel)) @ J.T @ errors
+            updates = -torch.inverse(J.T @ J + (self.mu+1e-8)*torch.eye(self.numel, device=self.prototype.device, dtype=self.prototype.dtype)) @ J.T @ errors
 
             # update weights
             self.update_weights(update = +updates)
