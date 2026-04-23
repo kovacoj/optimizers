@@ -2,6 +2,7 @@ import torch
 
 from ._utils import _FlatParamOptimizerMixin
 from ._utils import all_params
+from ._utils import trainable_params
 
 
 class Metropolis(_FlatParamOptimizerMixin, torch.optim.Optimizer):
@@ -9,9 +10,7 @@ class Metropolis(_FlatParamOptimizerMixin, torch.optim.Optimizer):
         super().__init__(params, {}) 
 
         params = trainable_params(self.param_groups)
-        self.numel = sum(
-            param.numel() for param in all_params(self.param_groups)
-        )
+        self.numel = sum(param.numel() for param in params)
 
         if self.numel == 0:
             raise ValueError("Metropolis requires at least one trainable parameter")

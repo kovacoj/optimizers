@@ -2,6 +2,7 @@ import torch
 from .Newton import Newton
 from ._utils import _FlatParamOptimizerMixin
 from ._utils import all_params
+from ._utils import trainable_params
 
 
 class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
@@ -13,9 +14,7 @@ class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
         self.elite_ratio = 0.2
 
         params = trainable_params(self.param_groups)
-        self.numel = sum(
-            param.numel() for param in all_params(self.param_groups)
-        )
+        self.numel = sum(param.numel() for param in params)
 
         if self.numel == 0:
             raise ValueError("Genetic requires at least one trainable parameter")

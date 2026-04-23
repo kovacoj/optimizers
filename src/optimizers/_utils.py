@@ -19,10 +19,10 @@ def trainable_params(param_groups):
     ]
 
 
-def flat_params(param_groups):
+def flat_params(params):
     return torch.cat([
         param.flatten()
-        for param in all_params(param_groups)
+        for param in params
     ])
 
 
@@ -73,8 +73,8 @@ def residual_sum_squares(errors):
 class _FlatParamOptimizerMixin:
     @property
     def params(self):
-        return flat_params(self.param_groups)
+        return flat_params(trainable_params(self.param_groups))
 
     @torch.no_grad()
     def update_weights(self, update):
-        load_flat_params_(all_params(self.param_groups), update)
+        load_flat_params_(trainable_params(self.param_groups), update)
