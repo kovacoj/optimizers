@@ -24,7 +24,7 @@ class Metropolis(_FlatParamOptimizer, torch.optim.Optimizer):
     def temperature(self, value):
         self.param_groups[0]['temperature'] = value
 
-    @torch.no_grad
+    @torch.no_grad()
     def mutate(self, ):
         proposal = self.params.clone()
         idx = torch.randint(low=0, high=self.numel, size=()).item()
@@ -32,7 +32,7 @@ class Metropolis(_FlatParamOptimizer, torch.optim.Optimizer):
 
         return proposal
 
-    @torch.no_grad
+    @torch.no_grad()
     def step(self, closure: Callable):
         variants = [self.params, self.mutate().clone()]
         Fs = torch.empty(2)

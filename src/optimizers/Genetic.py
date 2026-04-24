@@ -87,7 +87,7 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
     def population(self, value):
         self.state[self._state_param()]['population'] = value
 
-    @torch.no_grad
+    @torch.no_grad()
     def mutate(self, genome):
         mask = torch.rand_like(genome) < self.mutation_rate
         noise = torch.randn_like(genome)*self.mutation_strength
@@ -96,7 +96,7 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
 
         return genome
 
-    @torch.no_grad
+    @torch.no_grad()
     def crossover(self, parent1, parent2):
         if self.numel < 2:
             return parent1.clone(), parent2.clone()
@@ -108,7 +108,7 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
 
         return child1.clone(), child2.clone()
 
-    # @torch.no_grad
+    @torch.no_grad()
     def directional(self, closure, steps=0):
         self.helper.state.clear()
 
@@ -120,7 +120,7 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
 
         return closure()
 
-    # @torch.no_grad
+    @torch.no_grad()
     def step(self, closure: Callable):
         loss = torch.empty(self.pop_size)
 
