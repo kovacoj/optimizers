@@ -31,7 +31,7 @@ class LevenbergMarquardt(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
                         solve_epsilon = solve_epsilon,
                     )
         
-        super(LevenbergMarquardt, self).__init__(params, defaults)
+        super().__init__(params, defaults)
 
         params = trainable_params(self.param_groups)
         self.numel = sum(param.numel() for param in params)
