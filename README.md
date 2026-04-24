@@ -76,3 +76,7 @@ The public `optimizers.line_search` submodule exposes pure-PyTorch callback-base
 `KalmanFilter` is the linear-residual variant. `ExtendedKalmanFilter` computes the residual Jacobian internally.
 
 `Newton` defaults to the full Newton step when `line_search_method=None`. `LevenbergMarquardt` defaults to `strategy="line search"` and also accepts the compatibility aliases `"line_search"`, `"trust_region"`, and `"heuristic"`.
+
+## Scaling Notes
+
+`Newton` builds and solves a dense Hessian over all trainable parameters, so it is intended for small systems where exact second-order steps are practical. Use the Kalman or stochastic optimizers for experiments where forming a dense Hessian is too expensive.
