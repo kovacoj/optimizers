@@ -24,7 +24,7 @@ class ExtendedKalmanFilter(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
                     tau = tau
                 )
         
-        super(ExtendedKalmanFilter, self).__init__(params, defaults)
+        super().__init__(params, defaults)
 
         params = trainable_params(self.param_groups)
         self.numel = sum(param.numel() for param in params)
