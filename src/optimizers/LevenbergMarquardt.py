@@ -6,6 +6,7 @@ from ._utils import load_flat_params_
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
 from ._utils import trainable_params
+from .line_search import _canonical_line_search_method
 from .line_search import armijo_backtracking
 from .line_search import strong_wolfe
 
@@ -60,21 +61,6 @@ class LevenbergMarquardt(torch.optim.Optimizer):
 
         return aliases[value]
 
-    def _canonical_line_search_method(self, value):
-        aliases = {
-            "armijo": "armijo",
-            "wolfe": "wolfe",
-            "strong wolfe": "wolfe",
-            "strong_wolfe": "wolfe",
-        }
-
-        if value not in aliases:
-            raise ValueError(
-                "LevenbergMarquardt line_search_method must be 'armijo' or 'wolfe'"
-            )
-
-        return aliases[value]
-
     @property
     def mu(self):
         return self.param_groups[0]['mu']
@@ -117,11 +103,17 @@ class LevenbergMarquardt(torch.optim.Optimizer):
 
     @property
     def line_search_method(self):
-        return self._canonical_line_search_method(self.param_groups[0]['line_search_method'])
+        return _canonical_line_search_method(
+            self.param_groups[0]['line_search_method'],
+            optimizer_name="LevenbergMarquardt",
+        )
 
     @line_search_method.setter
     def line_search_method(self, value):
-        self.param_groups[0]['line_search_method'] = self._canonical_line_search_method(value)
+        self.param_groups[0]['line_search_method'] = _canonical_line_search_method(
+            value,
+            optimizer_name="LevenbergMarquardt",
+        )
 
     def jacobian(self, targets):
         return residual_jacobian(targets, trainable_params(self.param_groups))

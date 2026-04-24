@@ -1,6 +1,24 @@
 import torch
 
 
+def _canonical_line_search_method(value, allow_none=False, optimizer_name="optimizer"):
+    aliases = {
+        "armijo": "armijo",
+        "wolfe": "wolfe",
+        "strong wolfe": "wolfe",
+        "strong_wolfe": "wolfe",
+    }
+
+    if allow_none:
+        aliases[None] = None
+
+    if value not in aliases:
+        allowed = "None, 'armijo', or 'wolfe'" if allow_none else "'armijo' or 'wolfe'"
+        raise ValueError(f"{optimizer_name} line_search_method must be {allowed}")
+
+    return aliases[value]
+
+
 def _as_scalar_tensor(value, reference):
     if isinstance(value, torch.Tensor):
         return value.to(device=reference.device, dtype=reference.dtype).reshape(())

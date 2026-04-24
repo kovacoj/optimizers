@@ -113,6 +113,12 @@ def test_newton_wolfe_line_search_step_runs():
     optimizer.step(lambda: (x ** 2).sum())
 
 
+def test_newton_accepts_strong_wolfe_alias():
+    optimizer = Newton([_scalar_param()], line_search_method="strong_wolfe")
+
+    assert optimizer.line_search_method == "wolfe"
+
+
 def test_newton_line_search_keeps_params_on_non_descent_direction(monkeypatch):
     x = _scalar_param()
     optimizer = Newton([x], line_search_method="armijo")
@@ -453,6 +459,12 @@ def test_levenberg_marquardt_wolfe_line_search_step_runs():
     loss = optimizer.step(lambda: x.view(-1))
 
     assert isinstance(loss, float)
+
+
+def test_levenberg_marquardt_accepts_strong_wolfe_alias():
+    optimizer = LevenbergMarquardt([_scalar_param()], line_search_method="strong_wolfe")
+
+    assert optimizer.line_search_method == "wolfe"
 
 
 def test_extended_kalman_filter_step_runs():
