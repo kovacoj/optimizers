@@ -1,5 +1,4 @@
 import torch
-from .Newton import Newton
 from ._utils import _FlatParamOptimizerMixin
 from ._utils import trainable_params
 
@@ -26,7 +25,6 @@ class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
         self.population += torch.randn_like(self.population) * 1e-0
 
         self.helper = torch.optim.Adam(self.param_groups)
-        # self.helper = Newton(self.param_groups[0]['params'])
 
     def _state_param(self):
         return trainable_params(self.param_groups)[0]
