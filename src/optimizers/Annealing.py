@@ -2,23 +2,28 @@ from collections.abc import Callable
 
 import torch
 
-from ._utils import _FlatParamOptimizer
 from ._utils import _ParamGroupDefault
+from ._utils import flat_params
+from ._utils import load_flat_params_
 from ._utils import trainable_params
 
 
-class Annealing(_FlatParamOptimizer, torch.optim.Optimizer):
+class Annealing(torch.optim.Optimizer):
     temperature = _ParamGroupDefault()
     cooling_rate = _ParamGroupDefault()
 
     def __init__(self, params, cooling_rate=1e-3):
-        super().__init__(params, dict(temperature=1.0, cooling_rate=cooling_rate)) 
+        super().__init__(params, dict(temperature=1.0, cooling_rate=cooling_rate))
 
         params = trainable_params(self.param_groups)
         self.numel = sum(param.numel() for param in params)
 
         if self.numel == 0:
             raise ValueError("Annealing requires at least one trainable parameter")
+
+    @property
+    def params(self):
+        return flat_params(trainable_params(self.param_groups))
 
     @torch.no_grad()
     def mutate(self):
@@ -32,14 +37,14 @@ class Annealing(_FlatParamOptimizer, torch.optim.Optimizer):
         Fs = torch.empty(2)
 
         for idx, params in enumerate(variants):
-            self.update_weights(params)
+            load_flat_params_(trainable_params(self.param_groups), params)
             Fs[idx] = closure().item()
 
         idx = int((torch.rand(1) < torch.exp(
             (Fs[0] - Fs[1]) / self.temperature
         )).item())
 
-        self.update_weights(variants[idx])
+        load_flat_params_(trainable_params(self.param_groups), variants[idx])
         self.temperature *= 1 - self.cooling_rate
 
         return closure()

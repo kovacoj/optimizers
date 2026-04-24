@@ -2,15 +2,15 @@ from collections.abc import Callable
 
 import torch
 
-from ._utils import _FlatUpdateOptimizer
 from ._utils import _ParamGroupDefault
+from ._utils import add_flat_update_
 from ._utils import kalman_update
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
 from ._utils import trainable_params
 
 
-class ExtendedKalmanFilter(_FlatUpdateOptimizer, torch.optim.Optimizer):
+class ExtendedKalmanFilter(torch.optim.Optimizer):
     """Extended Kalman filter optimizer for residual-vector closures.
 
     This optimizer assumes a single parameter group and expects `closure()` to
@@ -84,7 +84,7 @@ class ExtendedKalmanFilter(_FlatUpdateOptimizer, torch.optim.Optimizer):
             tau=self.tau,
         )
 
-        self.update_weights(updates)
+        add_flat_update_(trainable_params(self.param_groups), updates)
 
         with torch.no_grad():
             return self.loss(closure())

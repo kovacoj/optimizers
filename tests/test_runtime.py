@@ -165,7 +165,8 @@ def test_stochastic_step_acceptance_uses_explicit_index(optimizer_cls, monkeypat
     optimizer.step(closure)
     assert x.item() == pytest.approx(2.0)
 
-    optimizer.update_weights(torch.tensor([1.0]))
+    from optimizers._utils import load_flat_params_, trainable_params
+    load_flat_params_(trainable_params(optimizer.param_groups), torch.tensor([1.0]))
     monkeypatch.setattr(torch, "rand", lambda *args, **kwargs: torch.tensor([1.0]))
     optimizer.step(closure)
     assert x.item() == pytest.approx(1.0)
