@@ -61,6 +61,7 @@ class Newton(torch.optim.Optimizer):
 
     def step(self, closure: callable):
         assert len(self.param_groups) == 1
+        closure = torch.enable_grad()(closure)
 
         params = trainable_params(self.param_groups)
         prototype = params[0]
