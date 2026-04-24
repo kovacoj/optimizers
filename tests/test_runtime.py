@@ -42,6 +42,29 @@ def test_newton_step_runs_with_float64():
     optimizer.step(lambda: (x ** 2).sum())
 
 
+def test_newton_damping_controls_regularization():
+    undamped = _scalar_param()
+    damped = _scalar_param()
+
+    Newton([undamped], damping=0.0).step(lambda: (undamped ** 2).sum())
+    Newton([damped], damping=2.0).step(lambda: (damped ** 2).sum())
+
+    assert undamped.item() == pytest.approx(0.0)
+    assert damped.item() == pytest.approx(0.5)
+
+
+def test_newton_state_dict_restores_damping():
+    x = _scalar_param()
+    optimizer = Newton([x], damping=0.25)
+    state_dict = optimizer.state_dict()
+
+    y = _scalar_param()
+    restored = Newton([y])
+    restored.load_state_dict(state_dict)
+
+    assert restored.damping == pytest.approx(0.25)
+
+
 def test_newton_rejects_multiple_param_groups():
     x = _scalar_param()
     y = _scalar_param(2.0)

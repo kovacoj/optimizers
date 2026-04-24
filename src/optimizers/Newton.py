@@ -10,8 +10,8 @@ from .line_search import strong_wolfe
 
 
 class Newton(torch.optim.Optimizer):
-    def __init__(self, params, line_search_method=None):
-        super().__init__(params, dict(line_search_method=line_search_method))
+    def __init__(self, params, line_search_method=None, damping=1e-4):
+        super().__init__(params, dict(line_search_method=line_search_method, damping=damping))
 
         params = trainable_params(self.param_groups)
         self.numel = sum(
@@ -22,6 +22,7 @@ class Newton(torch.optim.Optimizer):
             raise ValueError("Newton requires at least one trainable parameter")
 
         self.line_search_method = line_search_method
+        self.damping = damping
 
     def _canonical_line_search_method(self, value):
         aliases = {
@@ -44,6 +45,14 @@ class Newton(torch.optim.Optimizer):
     @line_search_method.setter
     def line_search_method(self, value):
         self.param_groups[0]['line_search_method'] = self._canonical_line_search_method(value)
+
+    @property
+    def damping(self):
+        return self.param_groups[0]['damping']
+
+    @damping.setter
+    def damping(self, value):
+        self.param_groups[0]['damping'] = value
     
     @property
     def params(self):
@@ -85,7 +94,7 @@ class Newton(torch.optim.Optimizer):
                     grad(g[idx], params, create_graph=True, retain_graph=True, allow_unused=True)
                 )
             ])
-        H += 1e-4 * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype) # damping for num. stability
+        H += self.damping * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype)
 
         direction = torch.linalg.solve(H, -g)
 
