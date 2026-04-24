@@ -70,6 +70,23 @@ def residual_sum_squares(errors):
     return errors @ errors
 
 
+def kalman_update(errors, H, P, Q, eta, eps, tau):
+    errors = errors.view(-1).clone()
+    P = P / tau + Q
+
+    R = ((1 / eta) + eps) * torch.eye(errors.shape[0], device=errors.device, dtype=errors.dtype)
+    A = H @ P @ H.T + R
+
+    K = torch.linalg.solve(A, H @ P).T
+    updates = -(K @ errors).view(-1)
+
+    I = torch.eye(P.shape[0], device=P.device, dtype=P.dtype)
+    IKH = I - K @ H
+    next_P = IKH @ P @ IKH.T + K @ R @ K.T
+
+    return updates, next_P, errors + H @ updates
+
+
 class _FlatParamOptimizerMixin:
     @property
     def params(self):

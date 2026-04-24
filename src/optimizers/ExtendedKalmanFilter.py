@@ -1,6 +1,7 @@
 import torch
 
 from ._utils import add_flat_update_
+from ._utils import kalman_update
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
 from ._utils import trainable_params
@@ -100,20 +101,17 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
             errors = closure()
             H = self.jacobian(errors)
 
-        P = self.P / self.tau + self.Q
-
-        R = ((1 / self.eta) + self.eps) * torch.eye(errors.shape[0], device=errors.device, dtype=errors.dtype)
-        A = H @ P @ H.T + R
-
-        K = torch.linalg.solve(A, H @ P).T
-
-        updates = -(K @ errors).view(-1)
+        updates, self.P, _ = kalman_update(
+            errors=errors,
+            H=H,
+            P=self.P,
+            Q=self.Q,
+            eta=self.eta,
+            eps=self.eps,
+            tau=self.tau,
+        )
 
         self.update_weights(updates)
-
-        I = torch.eye(self.numel, device=P.device, dtype=P.dtype)
-        IKH = I - K @ H
-        self.P = IKH @ P @ IKH.T + K @ R @ K.T
 
         with torch.no_grad():
             return self.loss(closure())
