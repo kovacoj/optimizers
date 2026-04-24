@@ -80,6 +80,20 @@ def test_newton_wolfe_line_search_step_runs():
     optimizer.step(lambda: (x ** 2).sum())
 
 
+def test_newton_line_search_keeps_params_on_non_descent_direction(monkeypatch):
+    x = _scalar_param()
+    optimizer = Newton([x], line_search_method="armijo")
+
+    def non_descent_direction(system, rhs):
+        return -rhs
+
+    monkeypatch.setattr(torch.linalg, "solve", non_descent_direction)
+
+    optimizer.step(lambda: (x ** 2).sum())
+
+    assert x.item() == pytest.approx(1.0)
+
+
 def test_annealing_step_runs():
     x = _scalar_param()
     optimizer = Annealing([x])
