@@ -1,10 +1,10 @@
 import torch
 
-from ._utils import _FlatParamOptimizerMixin
+from ._utils import _FlatParamOptimizer
 from ._utils import trainable_params
 
 
-class Annealing(_FlatParamOptimizerMixin, torch.optim.Optimizer):
+class Annealing(_FlatParamOptimizer, torch.optim.Optimizer):
     def __init__(self, params):
         super().__init__(params, dict(temperature=1.0)) 
 

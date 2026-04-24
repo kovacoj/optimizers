@@ -1,13 +1,13 @@
 import torch
 
-from ._utils import _FlatUpdateOptimizerMixin
+from ._utils import _FlatUpdateOptimizer
 from ._utils import kalman_update
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
 from ._utils import trainable_params
 
 
-class ExtendedKalmanFilter(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
+class ExtendedKalmanFilter(_FlatUpdateOptimizer, torch.optim.Optimizer):
     """Extended Kalman filter optimizer for residual-vector closures.
 
     This optimizer assumes a single parameter group and expects `closure()` to

@@ -87,7 +87,7 @@ def kalman_update(errors, H, P, Q, eta, eps, tau):
     return updates, next_P, errors + H @ updates
 
 
-class _FlatParamOptimizerMixin:
+class _FlatParamOptimizer:
     @property
     def params(self):
         return flat_params(trainable_params(self.param_groups))
@@ -97,7 +97,7 @@ class _FlatParamOptimizerMixin:
         load_flat_params_(trainable_params(self.param_groups), update)
 
 
-class _FlatUpdateOptimizerMixin:
+class _FlatUpdateOptimizer:
     @torch.no_grad()
     def update_weights(self, update):
         add_flat_update_(trainable_params(self.param_groups), update)

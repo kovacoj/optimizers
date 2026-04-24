@@ -1,9 +1,9 @@
 import torch
-from ._utils import _FlatParamOptimizerMixin
+from ._utils import _FlatParamOptimizer
 from ._utils import trainable_params
 
 
-class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
+class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
     def __init__(self, params):
         super().__init__(params, dict(
             mutation_rate=0.1,

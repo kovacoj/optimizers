@@ -1,6 +1,6 @@
 import torch
 
-from ._utils import _FlatUpdateOptimizerMixin
+from ._utils import _FlatUpdateOptimizer
 from ._utils import flat_params
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
@@ -10,7 +10,7 @@ from .line_search import armijo_backtracking
 from .line_search import strong_wolfe
 
 
-class LevenbergMarquardt(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
+class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
     """Levenberg-Marquardt optimizer for residual-vector closures.
 
     This optimizer assumes a single parameter group and expects `closure()` to

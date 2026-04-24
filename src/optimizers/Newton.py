@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import grad
 
-from ._utils import _FlatUpdateOptimizerMixin
+from ._utils import _FlatUpdateOptimizer
 from ._utils import flat_params
 from ._utils import trainable_params
 from .line_search import _canonical_line_search_method
@@ -9,7 +9,7 @@ from .line_search import armijo_backtracking
 from .line_search import strong_wolfe
 
 
-class Newton(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
+class Newton(_FlatUpdateOptimizer, torch.optim.Optimizer):
     """Dense Newton optimizer for scalar-loss closures.
 
     This optimizer explicitly materializes the full Hessian of all trainable
