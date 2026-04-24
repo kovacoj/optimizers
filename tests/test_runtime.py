@@ -25,6 +25,16 @@ def test_newton_step_runs():
     optimizer.step(lambda: (x ** 2).sum())
 
 
+def test_newton_step_runs_inside_no_grad_context():
+    x = _scalar_param()
+    optimizer = Newton([x])
+
+    with torch.no_grad():
+        optimizer.step(lambda: (x ** 2).sum())
+
+    assert x.item() != pytest.approx(1.0)
+
+
 def test_newton_step_runs_with_float64():
     x = torch.nn.Parameter(torch.tensor([1.0], dtype=torch.float64))
     optimizer = Newton([x])
