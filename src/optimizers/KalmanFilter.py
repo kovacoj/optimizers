@@ -60,10 +60,6 @@ class KalmanFilter(torch.optim.Optimizer):
 
     def loss(self, errors):
         return residual_sum_squares(errors)
-    
-    @torch.no_grad()
-    def update_weights(self, updates):
-        add_flat_update_(trainable_params(self.param_groups), updates)
 
     def step(self, closure: Callable):
 
@@ -83,6 +79,6 @@ class KalmanFilter(torch.optim.Optimizer):
             tau=self.tau,
         )
 
-        self.update_weights(updates)
+        add_flat_update_(trainable_params(self.param_groups), updates)
 
         return self.loss(linearized_errors.view(-1))

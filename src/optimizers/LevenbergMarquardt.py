@@ -2,9 +2,10 @@ from collections.abc import Callable
 
 import torch
 
-from ._utils import _FlatUpdateOptimizer
 from ._utils import _ParamGroupDefault
+from ._utils import add_flat_update_
 from ._utils import flat_params
+from ._utils import load_flat_params_
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
 from ._utils import trainable_params
@@ -13,7 +14,7 @@ from .line_search import armijo_backtracking
 from .line_search import strong_wolfe
 
 
-class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
+class LevenbergMarquardt(torch.optim.Optimizer):
     """Levenberg-Marquardt optimizer for residual-vector closures.
 
     This optimizer assumes a single parameter group and expects `closure()` to
@@ -43,7 +44,6 @@ class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
 
         params = trainable_params(self.param_groups)
         self.numel = sum(param.numel() for param in params)
-        # self.numel = reduce(lambda total, p: total + p.numel(), self.param_groups, 0)
 
         if self.numel == 0:
             raise ValueError("LevenbergMarquardt requires at least one trainable parameter")
@@ -112,11 +112,11 @@ class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
         direction = self._lm_step(J, errors)
 
         def phi(alpha):
-            self._set_params(params, base_params + alpha * direction)
+            load_flat_params_(params, base_params + alpha * direction)
             return 0.5 * self.loss(closure())
 
         def dphi(alpha):
-            self._set_params(params, base_params + alpha * direction)
+            load_flat_params_(params, base_params + alpha * direction)
             trial_errors = closure()
             trial_jacobian = self.jacobian(trial_errors)
             return (trial_jacobian.T @ trial_errors) @ direction
@@ -143,7 +143,7 @@ class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
                 max_iters=self.m_max + 1,
             )
 
-        self._set_params(params, base_params + alpha * direction)
+        load_flat_params_(params, base_params + alpha * direction)
         return (2.0 * phi_alpha).item()
 
     def _step_trust_region(self, closure, J, errors, base_loss):
@@ -160,7 +160,7 @@ class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
                 nu *= 2.0
                 continue
 
-            self.update_weights(updates)
+            add_flat_update_(trainable_params(self.param_groups), updates)
             new_loss = self.loss(closure())
             actual_reduction = base_loss - new_loss
             rho = actual_reduction / predicted_reduction
@@ -169,7 +169,7 @@ class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
                 self.mu *= max(1 / 3, 1 - (2 * rho - 1) ** 3)
                 return new_loss.item()
 
-            self.update_weights(-updates)
+            add_flat_update_(trainable_params(self.param_groups), -updates)
             self.mu *= nu
             nu *= 2.0
 
@@ -185,7 +185,6 @@ class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
         errors = closure()
         base_loss = self.loss(errors)
         
-        # compute Jacobian matrix
         J = self.jacobian(errors)
 
         if self.strategy == "trust region":

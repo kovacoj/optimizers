@@ -1,12 +1,13 @@
 from collections.abc import Callable
 
 import torch
-from ._utils import _FlatParamOptimizer
 from ._utils import _ParamGroupDefault
+from ._utils import flat_params
+from ._utils import load_flat_params_
 from ._utils import trainable_params
 
 
-class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
+class Genetic(torch.optim.Optimizer):
     mutation_rate = _ParamGroupDefault()
     mutation_strength = _ParamGroupDefault()
     elite_ratio = _ParamGroupDefault()
@@ -20,7 +21,7 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
             elite_ratio=0.2,
             pop_size=100,
             noise_scale=noise_scale,
-        )) 
+        ))
 
         params = trainable_params(self.param_groups)
         self.numel = sum(param.numel() for param in params)
@@ -35,6 +36,10 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
         self.population += torch.randn_like(self.population) * self.noise_scale
 
         self.helper = torch.optim.Adam(self.param_groups)
+
+    @property
+    def params(self):
+        return flat_params(trainable_params(self.param_groups))
 
     def _state_param(self):
         return trainable_params(self.param_groups)[0]
@@ -92,7 +97,6 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
             self.helper.zero_grad()
             closure().backward()
             self.helper.step()
-            # self.helper.step(closure)
 
         return closure()
 
@@ -100,12 +104,11 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
     def step(self, closure: Callable):
         loss = torch.empty(self.pop_size)
 
-        for idx in range(self.pop_size):            
-            self.update_weights(self.population[idx])
+        for idx in range(self.pop_size):
+            load_flat_params_(trainable_params(self.param_groups), self.population[idx])
             loss[idx] = self.directional(closure)
             self.population[idx] = self.params.clone()
 
-        # TRACK BEST INDIVIDUAL (ELITISM)
         best_idx = torch.argmin(loss)
         current_best_fitness = loss[best_idx].item()
 
@@ -113,32 +116,27 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
             self.best_fitness = current_best_fitness
             self.best_genome = self.population[best_idx].clone()
 
-        # SELECTION (Truncation Selection)
         num_parents = max(1, int(self.pop_size * self.elite_ratio))
         sorted_indices = torch.argsort(loss, descending=False)
         parent_indices = sorted_indices[:num_parents]
         parents = self.population[parent_indices]
 
-        # REPRODUCTION
         new_population = [self.best_genome.clone()]
 
         while len(new_population) < self.pop_size:
             p1_idx, p2_idx = torch.randint(0, num_parents, (2,)).unbind()
-            
+
             p1 = parents[p1_idx]
             p2 = parents[p2_idx]
 
-            # Crossover
             child1, child2 = self.crossover(p1, p2)
 
-            # Mutation
             new_population.append(self.mutate(child1))
             if len(new_population) < self.pop_size:
                 new_population.append(self.mutate(child2))
 
         self.population = torch.stack(new_population)
 
-        # pdate best weights for external calls to model(x)
-        self.update_weights(self.best_genome)
+        load_flat_params_(trainable_params(self.param_groups), self.best_genome)
 
         return closure()

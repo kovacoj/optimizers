@@ -3,16 +3,17 @@ from collections.abc import Callable
 import torch
 from torch.autograd import grad
 
-from ._utils import _FlatUpdateOptimizer
 from ._utils import _ParamGroupDefault
+from ._utils import add_flat_update_
 from ._utils import flat_params
+from ._utils import load_flat_params_
 from ._utils import trainable_params
 from .line_search import _canonical_line_search_method
 from .line_search import armijo_backtracking
 from .line_search import strong_wolfe
 
 
-class Newton(_FlatUpdateOptimizer, torch.optim.Optimizer):
+class Newton(torch.optim.Optimizer):
     """Dense Newton optimizer for scalar-loss closures.
 
     This optimizer explicitly materializes the full Hessian of all trainable
@@ -83,7 +84,7 @@ class Newton(_FlatUpdateOptimizer, torch.optim.Optimizer):
         direction = torch.linalg.solve(H, -g)
 
         if self.line_search_method is None:
-            self.update_weights(direction)
+            add_flat_update_(trainable_params(self.param_groups), direction)
             return
 
         base_params = flat_params(params).clone()
@@ -91,15 +92,15 @@ class Newton(_FlatUpdateOptimizer, torch.optim.Optimizer):
         dphi0 = g @ direction
 
         if not bool(dphi0 < 0):
-            self._set_params(params, base_params)
+            load_flat_params_(params, base_params)
             return
 
         def phi(alpha):
-            self._set_params(params, base_params + alpha * direction)
+            load_flat_params_(params, base_params + alpha * direction)
             return closure()
 
         def dphi(alpha):
-            self._set_params(params, base_params + alpha * direction)
+            load_flat_params_(params, base_params + alpha * direction)
             grads = grad(closure(), params, create_graph=True, allow_unused=True)
             gradient = torch.cat([
                 grad_.reshape(-1) if grad_ is not None else param.new_zeros(param.numel())
@@ -123,4 +124,4 @@ class Newton(_FlatUpdateOptimizer, torch.optim.Optimizer):
                 alpha0=loss0.new_tensor(1.0),
             )
 
-        self._set_params(params, base_params + alpha * direction)
+        load_flat_params_(params, base_params + alpha * direction)
