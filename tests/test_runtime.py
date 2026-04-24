@@ -261,7 +261,7 @@ def test_levenberg_marquardt_step_ignores_frozen_parameter():
     assert x.item() == pytest.approx(2.0)
 
 
-def test_levenberg_marquardt_restores_weights_when_line_search_fails():
+def test_levenberg_marquardt_line_search_recovers_from_bad_full_step():
     x = torch.nn.Parameter(torch.tensor([-2.9], dtype=torch.float64))
     optimizer = LevenbergMarquardt([x], mu=1e-6, m_max=1)
 
@@ -272,8 +272,7 @@ def test_levenberg_marquardt_restores_weights_when_line_search_fails():
     optimizer.step(closure)
     after = (closure() @ closure()).item()
 
-    assert after == pytest.approx(before)
-    assert x.item() == pytest.approx(-2.9)
+    assert after < before
 
 
 def test_levenberg_marquardt_state_dict_restores_mu():
@@ -306,6 +305,24 @@ def test_levenberg_marquardt_accepts_heuristic_alias():
 def test_levenberg_marquardt_trust_region_step_runs():
     x = _scalar_param()
     optimizer = LevenbergMarquardt([x], strategy="trust region")
+
+    loss = optimizer.step(lambda: x.view(-1))
+
+    assert isinstance(loss, float)
+
+
+def test_levenberg_marquardt_armijo_line_search_step_runs():
+    x = _scalar_param()
+    optimizer = LevenbergMarquardt([x], strategy="line search", line_search_method="armijo")
+
+    loss = optimizer.step(lambda: x.view(-1))
+
+    assert isinstance(loss, float)
+
+
+def test_levenberg_marquardt_wolfe_line_search_step_runs():
+    x = _scalar_param()
+    optimizer = LevenbergMarquardt([x], strategy="line search", line_search_method="wolfe")
 
     loss = optimizer.step(lambda: x.view(-1))
 

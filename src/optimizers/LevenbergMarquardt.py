@@ -1,9 +1,13 @@
 import torch
 
 from ._utils import add_flat_update_
+from ._utils import flat_params
+from ._utils import load_flat_params_
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
 from ._utils import trainable_params
+from .line_search import armijo_backtracking
+from .line_search import strong_wolfe
 
 
 class LevenbergMarquardt(torch.optim.Optimizer):
@@ -17,11 +21,12 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     callers can keep any loss history externally.
     """
 
-    def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10, strategy = "line search"):
+    def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10, strategy = "line search", line_search_method = "armijo"):
         defaults = dict(mu = mu,
                         mu_factor = mu_factor,
                         m_max = m_max,
                         strategy = strategy,
+                        line_search_method = line_search_method,
                     )
         
         super(LevenbergMarquardt, self).__init__(params, defaults)
@@ -49,6 +54,21 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         if value not in aliases:
             raise ValueError(
                 "LevenbergMarquardt strategy must be 'line search' or 'trust region'"
+            )
+
+        return aliases[value]
+
+    def _canonical_line_search_method(self, value):
+        aliases = {
+            "armijo": "armijo",
+            "wolfe": "wolfe",
+            "strong wolfe": "wolfe",
+            "strong_wolfe": "wolfe",
+        }
+
+        if value not in aliases:
+            raise ValueError(
+                "LevenbergMarquardt line_search_method must be 'armijo' or 'wolfe'"
             )
 
         return aliases[value]
@@ -85,6 +105,14 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     def strategy(self, value):
         self.param_groups[0]['strategy'] = self._canonical_strategy(value)
 
+    @property
+    def line_search_method(self):
+        return self._canonical_line_search_method(self.param_groups[0]['line_search_method'])
+
+    @line_search_method.setter
+    def line_search_method(self, value):
+        self.param_groups[0]['line_search_method'] = self._canonical_line_search_method(value)
+
     def jacobian(self, targets):
         return residual_jacobian(targets, trainable_params(self.param_groups))
     
@@ -96,6 +124,10 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     def update_weights(self, update):
         add_flat_update_(trainable_params(self.param_groups), update)
 
+    @torch.no_grad()
+    def _set_params(self, params, values):
+        load_flat_params_(params, values)
+
     def _lm_step(self, J, errors):
         system = J.T @ J + (self.mu + 1e-8) * torch.eye(
             self.numel,
@@ -105,29 +137,44 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         return -torch.linalg.solve(system, J.T @ errors)
 
     def _step_line_search(self, closure, J, errors, base_loss):
-        updates = self._lm_step(J, errors)
+        params = trainable_params(self.param_groups)
+        base_params = flat_params(params).clone()
+        direction = self._lm_step(J, errors)
 
-        self.update_weights(updates)
+        def phi(alpha):
+            self._set_params(params, base_params + alpha * direction)
+            return 0.5 * self.loss(closure())
 
-        loss_decreased = self.loss(closure()) < base_loss
-        for _ in range(self.m_max):
-            if loss_decreased:
-                break
+        def dphi(alpha):
+            self._set_params(params, base_params + alpha * direction)
+            trial_errors = closure()
+            trial_jacobian = self.jacobian(trial_errors)
+            return (trial_jacobian.T @ trial_errors) @ direction
 
-            self.update_weights(update = -updates)
+        phi0 = 0.5 * base_loss
+        dphi0 = (J.T @ errors) @ direction
 
-            self.mu *= self.mu_factor
-            updates = self._lm_step(J, errors)
-            self.update_weights(update = +updates)
-
-            loss_decreased = self.loss(closure()) < base_loss
-
-        if loss_decreased:
-            self.mu /= self.mu_factor
+        if self.line_search_method == "wolfe":
+            alpha, phi_alpha, _ = strong_wolfe(
+                phi=phi,
+                dphi=dphi,
+                phi0=phi0,
+                dphi0=dphi0,
+                alpha0=phi0.new_tensor(1.0),
+                max_iters=self.m_max + 1,
+                zoom_iters=self.m_max + 1,
+            )
         else:
-            self.update_weights(update = -updates)
+            alpha, phi_alpha = armijo_backtracking(
+                phi=phi,
+                phi0=phi0,
+                dphi0=dphi0,
+                alpha0=phi0.new_tensor(1.0),
+                max_iters=self.m_max + 1,
+            )
 
-        return self.loss(closure()).item()
+        self._set_params(params, base_params + alpha * direction)
+        return (2.0 * phi_alpha).item()
 
     def _step_trust_region(self, closure, J, errors, base_loss):
         gradient = J.T @ errors
