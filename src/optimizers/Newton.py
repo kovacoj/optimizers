@@ -5,6 +5,7 @@ from ._utils import add_flat_update_
 from ._utils import flat_params
 from ._utils import load_flat_params_
 from ._utils import trainable_params
+from .line_search import _canonical_line_search_method
 from .line_search import armijo_backtracking
 from .line_search import strong_wolfe
 
@@ -24,27 +25,21 @@ class Newton(torch.optim.Optimizer):
         self.line_search_method = line_search_method
         self.damping = damping
 
-    def _canonical_line_search_method(self, value):
-        aliases = {
-            None: None,
-            "armijo": "armijo",
-            "wolfe": "wolfe",
-            "strong wolfe": "wolfe",
-            "strong_wolfe": "wolfe",
-        }
-
-        if value not in aliases:
-            raise ValueError("Newton line_search_method must be None, 'armijo', or 'wolfe'")
-
-        return aliases[value]
-
     @property
     def line_search_method(self):
-        return self._canonical_line_search_method(self.param_groups[0]['line_search_method'])
+        return _canonical_line_search_method(
+            self.param_groups[0]['line_search_method'],
+            allow_none=True,
+            optimizer_name="Newton",
+        )
 
     @line_search_method.setter
     def line_search_method(self, value):
-        self.param_groups[0]['line_search_method'] = self._canonical_line_search_method(value)
+        self.param_groups[0]['line_search_method'] = _canonical_line_search_method(
+            value,
+            allow_none=True,
+            optimizer_name="Newton",
+        )
 
     @property
     def damping(self):
