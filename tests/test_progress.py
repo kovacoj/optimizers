@@ -1,8 +1,11 @@
 import torch
 
+from optimizers import Annealing
 from optimizers import ExtendedKalmanFilter
+from optimizers import Genetic
 from optimizers import KalmanFilter
 from optimizers import LevenbergMarquardt
+from optimizers import Metropolis
 from optimizers import Newton
 
 
@@ -166,5 +169,56 @@ def test_kalman_filter_reduces_residual_loss():
 
     with torch.no_grad():
         after = _residual_loss(x).item()
+
+    assert after < before
+
+
+def test_annealing_reduces_quadratic_loss_over_many_steps():
+    torch.manual_seed(42)
+    x = _vector_param()
+    optimizer = Annealing([x])
+
+    with torch.no_grad():
+        before = _quadratic_loss(x).item()
+
+    for _ in range(200):
+        optimizer.step(lambda: _quadratic_loss(x))
+
+    with torch.no_grad():
+        after = _quadratic_loss(x).item()
+
+    assert after < before
+
+
+def test_metropolis_reduces_quadratic_loss_over_many_steps():
+    torch.manual_seed(123)
+    x = _vector_param()
+    optimizer = Metropolis([x])
+
+    with torch.no_grad():
+        before = _quadratic_loss(x).item()
+
+    for _ in range(200):
+        optimizer.step(lambda: _quadratic_loss(x))
+
+    with torch.no_grad():
+        after = _quadratic_loss(x).item()
+
+    assert after < before
+
+
+def test_genetic_reduces_quadratic_loss_over_many_steps():
+    torch.manual_seed(0)
+    x = _vector_param()
+    optimizer = Genetic([x])
+
+    with torch.no_grad():
+        before = _quadratic_loss(x).item()
+
+    for _ in range(10):
+        optimizer.step(lambda: _quadratic_loss(x))
+
+    with torch.no_grad():
+        after = _quadratic_loss(x).item()
 
     assert after < before
