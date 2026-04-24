@@ -95,3 +95,13 @@ class _FlatParamOptimizerMixin:
     @torch.no_grad()
     def update_weights(self, update):
         load_flat_params_(trainable_params(self.param_groups), update)
+
+
+class _FlatUpdateOptimizerMixin:
+    @torch.no_grad()
+    def update_weights(self, update):
+        add_flat_update_(trainable_params(self.param_groups), update)
+
+    @torch.no_grad()
+    def _set_params(self, params, values):
+        load_flat_params_(params, values)

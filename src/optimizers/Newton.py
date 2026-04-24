@@ -1,23 +1,21 @@
 import torch
 from torch.autograd import grad
 
-from ._utils import add_flat_update_
+from ._utils import _FlatUpdateOptimizerMixin
 from ._utils import flat_params
-from ._utils import load_flat_params_
 from ._utils import trainable_params
 from .line_search import _canonical_line_search_method
 from .line_search import armijo_backtracking
 from .line_search import strong_wolfe
 
 
-class Newton(torch.optim.Optimizer):
+class Newton(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
     """Dense Newton optimizer for scalar-loss closures.
 
     This optimizer explicitly materializes the full Hessian of all trainable
     parameters. It is intended for small parameter vectors where dense
     second-order linear algebra is practical.
     """
-
     def __init__(self, params, line_search_method=None, damping=1e-4):
         super().__init__(params, dict(line_search_method=line_search_method, damping=damping))
 
@@ -61,14 +59,6 @@ class Newton(torch.optim.Optimizer):
         return torch.cat([
             p.flatten() for group in self.param_groups for p in group['params']
         ])
-
-    @torch.no_grad()
-    def update_weights(self, update):
-        add_flat_update_(trainable_params(self.param_groups), update)
-
-    @torch.no_grad()
-    def _set_params(self, params, values):
-        load_flat_params_(params, values)
 
     def step(self, closure: callable):
         assert len(self.param_groups) == 1
