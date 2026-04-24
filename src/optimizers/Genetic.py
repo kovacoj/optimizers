@@ -6,12 +6,13 @@ from ._utils import trainable_params
 
 
 class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
-    def __init__(self, params):
+    def __init__(self, params, noise_scale=1.0):
         super().__init__(params, dict(
             mutation_rate=0.1,
             mutation_strength=0.1,
             elite_ratio=0.2,
             pop_size=100,
+            noise_scale=noise_scale,
         )) 
 
         params = trainable_params(self.param_groups)
@@ -24,7 +25,7 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
         self.best_fitness = float('inf')
 
         self.population = self.params.unsqueeze(0).repeat(self.pop_size, 1)
-        self.population += torch.randn_like(self.population) * 1e-0
+        self.population += torch.randn_like(self.population) * self.noise_scale
 
         self.helper = torch.optim.Adam(self.param_groups)
 
@@ -62,6 +63,14 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
     @pop_size.setter
     def pop_size(self, value):
         self.param_groups[0]['pop_size'] = value
+
+    @property
+    def noise_scale(self):
+        return self.param_groups[0]['noise_scale']
+
+    @noise_scale.setter
+    def noise_scale(self, value):
+        self.param_groups[0]['noise_scale'] = value
 
     @property
     def best_genome(self):

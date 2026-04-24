@@ -7,8 +7,8 @@ from ._utils import trainable_params
 
 
 class Annealing(_FlatParamOptimizer, torch.optim.Optimizer):
-    def __init__(self, params):
-        super().__init__(params, dict(temperature=1.0)) 
+    def __init__(self, params, cooling_rate=1e-3):
+        super().__init__(params, dict(temperature=1.0, cooling_rate=cooling_rate)) 
 
         params = trainable_params(self.param_groups)
         self.numel = sum(param.numel() for param in params)
@@ -23,6 +23,14 @@ class Annealing(_FlatParamOptimizer, torch.optim.Optimizer):
     @temperature.setter
     def temperature(self, value):
         self.param_groups[0]['temperature'] = value
+
+    @property
+    def cooling_rate(self):
+        return self.param_groups[0]['cooling_rate']
+
+    @cooling_rate.setter
+    def cooling_rate(self, value):
+        self.param_groups[0]['cooling_rate'] = value
 
     @torch.no_grad()
     def mutate(self):
@@ -44,6 +52,6 @@ class Annealing(_FlatParamOptimizer, torch.optim.Optimizer):
         )).item())
 
         self.update_weights(variants[idx])
-        self.temperature *= 1 - 1e-3
+        self.temperature *= 1 - self.cooling_rate
 
         return closure()
