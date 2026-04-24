@@ -11,6 +11,13 @@ from .line_search import strong_wolfe
 
 
 class Newton(torch.optim.Optimizer):
+    """Dense Newton optimizer for scalar-loss closures.
+
+    This optimizer explicitly materializes the full Hessian of all trainable
+    parameters. It is intended for small parameter vectors where dense
+    second-order linear algebra is practical.
+    """
+
     def __init__(self, params, line_search_method=None, damping=1e-4):
         super().__init__(params, dict(line_search_method=line_search_method, damping=damping))
 
