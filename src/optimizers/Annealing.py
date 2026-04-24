@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import torch
 
 from ._utils import _FlatParamOptimizer
@@ -29,7 +31,7 @@ class Annealing(_FlatParamOptimizer, torch.optim.Optimizer):
         )*self.temperature
 
     @torch.no_grad
-    def step(self, closure):
+    def step(self, closure: Callable):
         variants = [self.params, self.mutate().clone()]
         Fs = torch.empty(2)
 

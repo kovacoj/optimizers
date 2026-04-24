@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import torch
 
 from ._utils import _FlatUpdateOptimizer
@@ -199,7 +201,7 @@ class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
 
         return base_loss.item()
 
-    def step(self, closure = None):
+    def step(self, closure: Callable):
 
         if len(self.param_groups) != 1:
             raise ValueError("LevenbergMarquardt requires exactly one parameter group")
