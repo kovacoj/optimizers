@@ -96,11 +96,9 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
 
         assert len(self.param_groups) == 1
 
-        closure = torch.enable_grad()(closure)
-
-        errors = closure()
-        
-        H = self.jacobian(errors)
+        with torch.enable_grad():
+            errors = closure()
+            H = self.jacobian(errors)
 
         P = self.P / self.tau + self.Q
 
@@ -117,4 +115,5 @@ class ExtendedKalmanFilter(torch.optim.Optimizer):
         IKH = I - K @ H
         self.P = IKH @ P @ IKH.T + K @ R @ K.T
 
-        return self.loss(closure())
+        with torch.no_grad():
+            return self.loss(closure())
