@@ -90,7 +90,7 @@ class Genetic(_FlatParamOptimizerMixin, torch.optim.Optimizer):
     @torch.no_grad
     def mutate(self, genome):
         mask = torch.rand_like(genome) < self.mutation_rate
-        noise = torch.randn_like(genome)*self.mutation_strength**2
+        noise = torch.randn_like(genome)*self.mutation_strength
 
         genome[mask] += noise[mask]
 
