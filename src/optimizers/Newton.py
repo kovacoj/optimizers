@@ -54,12 +54,6 @@ class Newton(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
     def damping(self, value):
         self.param_groups[0]['damping'] = value
     
-    @property
-    def params(self):
-        return torch.cat([
-            p.flatten() for group in self.param_groups for p in group['params']
-        ])
-
     def step(self, closure: callable):
         if len(self.param_groups) != 1:
             raise ValueError("Newton requires exactly one parameter group")
