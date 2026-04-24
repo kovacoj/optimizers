@@ -1,8 +1,7 @@
 import torch
 
-from ._utils import add_flat_update_
+from ._utils import _FlatUpdateOptimizerMixin
 from ._utils import flat_params
-from ._utils import load_flat_params_
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
 from ._utils import trainable_params
@@ -11,7 +10,7 @@ from .line_search import armijo_backtracking
 from .line_search import strong_wolfe
 
 
-class LevenbergMarquardt(torch.optim.Optimizer):
+class LevenbergMarquardt(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
     """Levenberg-Marquardt optimizer for residual-vector closures.
 
     This optimizer assumes a single parameter group and expects `closure()` to
@@ -122,14 +121,6 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     def loss(self, errors):
         return residual_sum_squares(errors)
     
-    @torch.no_grad()
-    def update_weights(self, update):
-        add_flat_update_(trainable_params(self.param_groups), update)
-
-    @torch.no_grad()
-    def _set_params(self, params, values):
-        load_flat_params_(params, values)
-
     def _lm_step(self, J, errors):
         damping = self.mu + self.solve_epsilon
         system = J.T @ J + damping * torch.eye(
