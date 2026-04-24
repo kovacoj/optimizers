@@ -91,7 +91,8 @@ class ExtendedKalmanFilter(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
     
     def step(self, closure = None):
 
-        assert len(self.param_groups) == 1
+        if len(self.param_groups) != 1:
+            raise ValueError("ExtendedKalmanFilter requires exactly one parameter group")
 
         with torch.enable_grad():
             errors = closure()

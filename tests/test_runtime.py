@@ -73,7 +73,7 @@ def test_newton_rejects_multiple_param_groups():
         {"params": [y]},
     ])
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         optimizer.step(lambda: (x ** 2).sum() + (y ** 2).sum())
 
 
