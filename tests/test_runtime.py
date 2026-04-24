@@ -332,6 +332,29 @@ def test_levenberg_marquardt_state_dict_restores_mu():
     assert restored.mu == pytest.approx(optimizer.mu)
 
 
+def test_levenberg_marquardt_solve_epsilon_controls_diagonal_jitter():
+    exact = _scalar_param()
+    jittered = _scalar_param()
+
+    LevenbergMarquardt([exact], mu=0.0, solve_epsilon=0.0).step(lambda: exact.view(-1))
+    LevenbergMarquardt([jittered], mu=0.0, solve_epsilon=1.0).step(lambda: jittered.view(-1))
+
+    assert exact.item() == pytest.approx(0.0)
+    assert jittered.item() == pytest.approx(0.5)
+
+
+def test_levenberg_marquardt_state_dict_restores_solve_epsilon():
+    x = _scalar_param()
+    optimizer = LevenbergMarquardt([x], solve_epsilon=0.25)
+    state_dict = optimizer.state_dict()
+
+    y = _scalar_param()
+    restored = LevenbergMarquardt([y])
+    restored.load_state_dict(state_dict)
+
+    assert restored.solve_epsilon == pytest.approx(0.25)
+
+
 def test_levenberg_marquardt_strategy_uses_line_search_name():
     optimizer = LevenbergMarquardt([_scalar_param()])
 
