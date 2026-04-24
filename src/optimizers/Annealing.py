@@ -1,7 +1,6 @@
 import torch
 
 from ._utils import _FlatParamOptimizerMixin
-from ._utils import all_params
 from ._utils import trainable_params
 
 
