@@ -61,7 +61,8 @@ class Newton(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
         ])
 
     def step(self, closure: callable):
-        assert len(self.param_groups) == 1
+        if len(self.param_groups) != 1:
+            raise ValueError("Newton requires exactly one parameter group")
         closure = torch.enable_grad()(closure)
 
         params = trainable_params(self.param_groups)

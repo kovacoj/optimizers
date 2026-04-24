@@ -91,7 +91,8 @@ class KalmanFilter(torch.optim.Optimizer):
 
     def step(self, closure = None):
 
-        assert len(self.param_groups) == 1
+        if len(self.param_groups) != 1:
+            raise ValueError("KalmanFilter requires exactly one parameter group")
 
         with torch.no_grad():
             errors, H = closure()

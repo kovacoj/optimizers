@@ -201,7 +201,8 @@ class LevenbergMarquardt(_FlatUpdateOptimizerMixin, torch.optim.Optimizer):
 
     def step(self, closure = None):
 
-        assert len(self.param_groups) == 1
+        if len(self.param_groups) != 1:
+            raise ValueError("LevenbergMarquardt requires exactly one parameter group")
 
         closure = torch.enable_grad()(closure)
 
