@@ -3,6 +3,7 @@ from collections.abc import Callable
 import torch
 
 from ._utils import _FlatUpdateOptimizer
+from ._utils import _ParamGroupDefault
 from ._utils import flat_params
 from ._utils import residual_jacobian
 from ._utils import residual_sum_squares
@@ -23,6 +24,11 @@ class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
     `step()` returns the final residual sum of squares as a Python float, so
     callers can keep any loss history externally.
     """
+
+    mu = _ParamGroupDefault()
+    mu_factor = _ParamGroupDefault()
+    m_max = _ParamGroupDefault()
+    solve_epsilon = _ParamGroupDefault()
 
     def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10, strategy = "line search", line_search_method = "armijo", solve_epsilon = 1e-8):
         defaults = dict(mu = mu,
@@ -61,38 +67,6 @@ class LevenbergMarquardt(_FlatUpdateOptimizer, torch.optim.Optimizer):
             )
 
         return aliases[value]
-
-    @property
-    def mu(self):
-        return self.param_groups[0]['mu']
-
-    @mu.setter
-    def mu(self, value):
-        self.param_groups[0]['mu'] = value
-
-    @property
-    def mu_factor(self):
-        return self.param_groups[0]['mu_factor']
-
-    @mu_factor.setter
-    def mu_factor(self, value):
-        self.param_groups[0]['mu_factor'] = value
-
-    @property
-    def m_max(self):
-        return self.param_groups[0]['m_max']
-
-    @m_max.setter
-    def m_max(self, value):
-        self.param_groups[0]['m_max'] = value
-
-    @property
-    def solve_epsilon(self):
-        return self.param_groups[0]['solve_epsilon']
-
-    @solve_epsilon.setter
-    def solve_epsilon(self, value):
-        self.param_groups[0]['solve_epsilon'] = value
 
     @property
     def strategy(self):
