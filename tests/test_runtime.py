@@ -218,6 +218,20 @@ def test_genetic_step_runs_with_scalar_parameter_vector():
     assert isinstance(loss, torch.Tensor)
 
 
+def test_genetic_mutation_strength_scales_noise(monkeypatch):
+    x = torch.nn.Parameter(torch.zeros(3))
+    optimizer = Genetic([x])
+    optimizer.mutation_rate = 1.0
+    optimizer.mutation_strength = 0.1
+
+    monkeypatch.setattr(torch, "rand_like", lambda tensor: torch.zeros_like(tensor))
+    monkeypatch.setattr(torch, "randn_like", lambda tensor: torch.ones_like(tensor))
+
+    mutated = optimizer.mutate(torch.zeros_like(x))
+
+    assert torch.equal(mutated, torch.full_like(x, 0.1))
+
+
 def test_genetic_state_dict_restores_population_and_elite_state():
     x = _scalar_param()
     optimizer = Genetic([x])
