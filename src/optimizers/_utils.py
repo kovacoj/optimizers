@@ -87,6 +87,19 @@ def kalman_update(errors, H, P, Q, eta, eps, tau):
     return updates, next_P, errors + H @ updates
 
 
+class _ParamGroupDefault:
+    def __set_name__(self, owner, name):
+        self.name = name
+
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+        return obj.param_groups[0][self.name]
+
+    def __set__(self, obj, value):
+        obj.param_groups[0][self.name] = value
+
+
 class _FlatParamOptimizer:
     @property
     def params(self):

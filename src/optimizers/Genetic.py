@@ -2,10 +2,17 @@ from collections.abc import Callable
 
 import torch
 from ._utils import _FlatParamOptimizer
+from ._utils import _ParamGroupDefault
 from ._utils import trainable_params
 
 
 class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
+    mutation_rate = _ParamGroupDefault()
+    mutation_strength = _ParamGroupDefault()
+    elite_ratio = _ParamGroupDefault()
+    pop_size = _ParamGroupDefault()
+    noise_scale = _ParamGroupDefault()
+
     def __init__(self, params, noise_scale=1.0):
         super().__init__(params, dict(
             mutation_rate=0.1,
@@ -31,46 +38,6 @@ class Genetic(_FlatParamOptimizer, torch.optim.Optimizer):
 
     def _state_param(self):
         return trainable_params(self.param_groups)[0]
-
-    @property
-    def mutation_rate(self):
-        return self.param_groups[0]['mutation_rate']
-
-    @mutation_rate.setter
-    def mutation_rate(self, value):
-        self.param_groups[0]['mutation_rate'] = value
-
-    @property
-    def mutation_strength(self):
-        return self.param_groups[0]['mutation_strength']
-
-    @mutation_strength.setter
-    def mutation_strength(self, value):
-        self.param_groups[0]['mutation_strength'] = value
-
-    @property
-    def elite_ratio(self):
-        return self.param_groups[0]['elite_ratio']
-
-    @elite_ratio.setter
-    def elite_ratio(self, value):
-        self.param_groups[0]['elite_ratio'] = value
-
-    @property
-    def pop_size(self):
-        return self.param_groups[0]['pop_size']
-
-    @pop_size.setter
-    def pop_size(self, value):
-        self.param_groups[0]['pop_size'] = value
-
-    @property
-    def noise_scale(self):
-        return self.param_groups[0]['noise_scale']
-
-    @noise_scale.setter
-    def noise_scale(self, value):
-        self.param_groups[0]['noise_scale'] = value
 
     @property
     def best_genome(self):

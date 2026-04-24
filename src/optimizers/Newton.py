@@ -4,6 +4,7 @@ import torch
 from torch.autograd import grad
 
 from ._utils import _FlatUpdateOptimizer
+from ._utils import _ParamGroupDefault
 from ._utils import flat_params
 from ._utils import trainable_params
 from .line_search import _canonical_line_search_method
@@ -18,6 +19,8 @@ class Newton(_FlatUpdateOptimizer, torch.optim.Optimizer):
     parameters. It is intended for small parameter vectors where dense
     second-order linear algebra is practical.
     """
+    damping = _ParamGroupDefault()
+
     def __init__(self, params, line_search_method=None, damping=1e-4):
         super().__init__(params, dict(line_search_method=line_search_method, damping=damping))
 
@@ -47,14 +50,6 @@ class Newton(_FlatUpdateOptimizer, torch.optim.Optimizer):
             allow_none=True,
             optimizer_name="Newton",
         )
-
-    @property
-    def damping(self):
-        return self.param_groups[0]['damping']
-
-    @damping.setter
-    def damping(self, value):
-        self.param_groups[0]['damping'] = value
     
     def step(self, closure: Callable):
         if len(self.param_groups) != 1:
