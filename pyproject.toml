@@ -25,6 +25,7 @@ Issues = "https://github.com/kovacoj/optimizers/issues"
 
 [dependency-groups]
 dev = [
+    "numpy>=2.1",
     "pytest>=8.4.2",
 ]
 
