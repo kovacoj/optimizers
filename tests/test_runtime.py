@@ -325,6 +325,34 @@ def test_levenberg_marquardt_trust_region_step_runs():
     assert isinstance(loss, float)
 
 
+def test_levenberg_marquardt_trust_region_decreases_mu_on_accepted_step():
+    x = _scalar_param()
+    optimizer = LevenbergMarquardt([x], mu=1.0, strategy="trust region")
+    before_mu = optimizer.mu
+
+    loss = optimizer.step(lambda: x.view(-1))
+
+    assert loss < 1.0
+    assert optimizer.mu < before_mu
+
+
+def test_levenberg_marquardt_trust_region_increases_mu_on_rejected_step():
+    x = torch.nn.Parameter(torch.tensor([-2.9], dtype=torch.float64))
+    optimizer = LevenbergMarquardt([x], mu=1e-6, m_max=0, strategy="trust region")
+    before_mu = optimizer.mu
+    before_x = x.detach().clone()
+
+    def closure():
+        return torch.sin(5 * x).view(-1)
+
+    before_loss = (closure() @ closure()).item()
+    loss = optimizer.step(closure)
+
+    assert loss == pytest.approx(before_loss)
+    assert x.item() == pytest.approx(before_x.item())
+    assert optimizer.mu > before_mu
+
+
 def test_levenberg_marquardt_armijo_line_search_step_runs():
     x = _scalar_param()
     optimizer = LevenbergMarquardt([x], strategy="line search", line_search_method="armijo")
