@@ -1,6 +1,6 @@
 [project]
 name = "optimizers"
-version = "0.1.2"
+version = "0.1.3"
 description = "Non-standard optimizers for PyTorch"
 readme = "README.md"
 license = "MIT"
