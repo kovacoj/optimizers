@@ -45,9 +45,21 @@ Because this repository uses a `src` layout, importing directly from the repo ch
 
 ```python
 from optimizers import KalmanFilter
+from optimizers import LevenbergMarquardt
+from optimizers import Newton
+from optimizers import line_search
 ```
 
-`KalmanFilter` expects `closure()` to return `(errors, H)`, while `ExtendedKalmanFilter` computes the Jacobian from a residual-vector closure.
+`Newton`, `Annealing`, `Metropolis`, and `Genetic` expect `closure()` to return a scalar loss tensor. `LevenbergMarquardt` and `ExtendedKalmanFilter` expect a residual-vector closure. `KalmanFilter` expects `closure()` to return `(errors, H)`.
+
+## Line search
+
+The public `optimizers.line_search` submodule exposes pure-PyTorch callback-based helpers:
+
+- `line_search.armijo_backtracking(phi, phi0, dphi0, ...)`
+- `line_search.strong_wolfe(phi, dphi, phi0, dphi0, ...)`
+
+`Newton(..., line_search_method="armijo" | "wolfe")` uses these helpers to scale the full Newton direction. `LevenbergMarquardt(..., strategy="line search", line_search_method="armijo" | "wolfe")` uses the same line-search methods for residual-vector problems, while `strategy="trust region"` switches to a trust-region LM update.
 
 ## Public API
 
@@ -62,3 +74,5 @@ from optimizers import KalmanFilter
 | `KalmanFilter` | `(errors, H)` | scalar loss tensor |
 
 `KalmanFilter` is the linear-residual variant. `ExtendedKalmanFilter` computes the residual Jacobian internally.
+
+`Newton` defaults to the full Newton step when `line_search_method=None`. `LevenbergMarquardt` defaults to `strategy="line search"` and also accepts the compatibility aliases `"line_search"`, `"trust_region"`, and `"heuristic"`.
