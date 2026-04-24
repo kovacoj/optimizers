@@ -16,17 +16,19 @@ class LevenbergMarquardt(torch.optim.Optimizer):
     This optimizer assumes a single parameter group and expects `closure()` to
     return a 1D tensor of residuals. The `strategy` argument selects between a
     line-search style damping update and a trust-region gain-ratio update.
+    `solve_epsilon` adds a small diagonal jitter to the linear solve.
 
     `step()` returns the final residual sum of squares as a Python float, so
     callers can keep any loss history externally.
     """
 
-    def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10, strategy = "line search", line_search_method = "armijo"):
+    def __init__(self, params, mu = 10**3, mu_factor = 5, m_max = 10, strategy = "line search", line_search_method = "armijo", solve_epsilon = 1e-8):
         defaults = dict(mu = mu,
                         mu_factor = mu_factor,
                         m_max = m_max,
                         strategy = strategy,
                         line_search_method = line_search_method,
+                        solve_epsilon = solve_epsilon,
                     )
         
         super(LevenbergMarquardt, self).__init__(params, defaults)
@@ -98,6 +100,14 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         self.param_groups[0]['m_max'] = value
 
     @property
+    def solve_epsilon(self):
+        return self.param_groups[0]['solve_epsilon']
+
+    @solve_epsilon.setter
+    def solve_epsilon(self, value):
+        self.param_groups[0]['solve_epsilon'] = value
+
+    @property
     def strategy(self):
         return self._canonical_strategy(self.param_groups[0]['strategy'])
 
@@ -129,7 +139,8 @@ class LevenbergMarquardt(torch.optim.Optimizer):
         load_flat_params_(params, values)
 
     def _lm_step(self, J, errors):
-        system = J.T @ J + (self.mu + 1e-8) * torch.eye(
+        damping = self.mu + self.solve_epsilon
+        system = J.T @ J + damping * torch.eye(
             self.numel,
             device=self.prototype.device,
             dtype=self.prototype.dtype,
@@ -182,7 +193,8 @@ class LevenbergMarquardt(torch.optim.Optimizer):
 
         for _ in range(self.m_max + 1):
             updates = self._lm_step(J, errors)
-            predicted_reduction = updates @ ((self.mu + 1e-8) * updates - gradient)
+            damping = self.mu + self.solve_epsilon
+            predicted_reduction = updates @ (damping * updates - gradient)
 
             if predicted_reduction <= 0:
                 self.mu *= nu
