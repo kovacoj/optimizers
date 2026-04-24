@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import torch
 from torch.autograd import grad
 
@@ -54,7 +56,7 @@ class Newton(_FlatUpdateOptimizer, torch.optim.Optimizer):
     def damping(self, value):
         self.param_groups[0]['damping'] = value
     
-    def step(self, closure: callable):
+    def step(self, closure: Callable):
         if len(self.param_groups) != 1:
             raise ValueError("Newton requires exactly one parameter group")
         closure = torch.enable_grad()(closure)

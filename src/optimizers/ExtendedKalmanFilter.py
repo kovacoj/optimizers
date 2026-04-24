@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import torch
 
 from ._utils import _FlatUpdateOptimizer
@@ -89,7 +91,7 @@ class ExtendedKalmanFilter(_FlatUpdateOptimizer, torch.optim.Optimizer):
     def loss(self, errors):
         return residual_sum_squares(errors)
     
-    def step(self, closure = None):
+    def step(self, closure: Callable):
 
         if len(self.param_groups) != 1:
             raise ValueError("ExtendedKalmanFilter requires exactly one parameter group")

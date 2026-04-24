@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import torch
 
 from ._utils import add_flat_update_
@@ -89,7 +91,7 @@ class KalmanFilter(torch.optim.Optimizer):
     def update_weights(self, updates):
         add_flat_update_(trainable_params(self.param_groups), updates)
 
-    def step(self, closure = None):
+    def step(self, closure: Callable):
 
         if len(self.param_groups) != 1:
             raise ValueError("KalmanFilter requires exactly one parameter group")
