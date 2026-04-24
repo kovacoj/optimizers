@@ -43,6 +43,36 @@ def test_newton_reduces_quadratic_loss():
     assert after < before
 
 
+def test_newton_armijo_line_search_reduces_quadratic_loss():
+    x = _vector_param()
+    optimizer = Newton([x], line_search_method="armijo")
+
+    with torch.no_grad():
+        before = _quadratic_loss(x).item()
+
+    optimizer.step(lambda: _quadratic_loss(x))
+
+    with torch.no_grad():
+        after = _quadratic_loss(x).item()
+
+    assert after < before
+
+
+def test_newton_wolfe_line_search_reduces_quadratic_loss():
+    x = _vector_param()
+    optimizer = Newton([x], line_search_method="wolfe")
+
+    with torch.no_grad():
+        before = _quadratic_loss(x).item()
+
+    optimizer.step(lambda: _quadratic_loss(x))
+
+    with torch.no_grad():
+        after = _quadratic_loss(x).item()
+
+    assert after < before
+
+
 def test_levenberg_marquardt_reduces_residual_loss():
     x = _vector_param()
     optimizer = LevenbergMarquardt([x])

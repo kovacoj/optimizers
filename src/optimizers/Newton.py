@@ -2,12 +2,16 @@ import torch
 from torch.autograd import grad
 
 from ._utils import add_flat_update_
+from ._utils import flat_params
+from ._utils import load_flat_params_
 from ._utils import trainable_params
+from .line_search import armijo_backtracking
+from .line_search import strong_wolfe
 
 
 class Newton(torch.optim.Optimizer):
-    def __init__(self, params):
-        super().__init__(params, {})
+    def __init__(self, params, line_search_method=None):
+        super().__init__(params, dict(line_search_method=line_search_method))
 
         params = trainable_params(self.param_groups)
         self.numel = sum(
@@ -16,6 +20,30 @@ class Newton(torch.optim.Optimizer):
 
         if self.numel == 0:
             raise ValueError("Newton requires at least one trainable parameter")
+
+        self.line_search_method = line_search_method
+
+    def _canonical_line_search_method(self, value):
+        aliases = {
+            None: None,
+            "armijo": "armijo",
+            "wolfe": "wolfe",
+            "strong wolfe": "wolfe",
+            "strong_wolfe": "wolfe",
+        }
+
+        if value not in aliases:
+            raise ValueError("Newton line_search_method must be None, 'armijo', or 'wolfe'")
+
+        return aliases[value]
+
+    @property
+    def line_search_method(self):
+        return self._canonical_line_search_method(self.param_groups[0]['line_search_method'])
+
+    @line_search_method.setter
+    def line_search_method(self, value):
+        self.param_groups[0]['line_search_method'] = self._canonical_line_search_method(value)
     
     @property
     def params(self):
@@ -26,6 +54,10 @@ class Newton(torch.optim.Optimizer):
     @torch.no_grad()
     def update_weights(self, update):
         add_flat_update_(trainable_params(self.param_groups), update)
+
+    @torch.no_grad()
+    def _set_params(self, params, values):
+        load_flat_params_(params, values)
 
     def step(self, closure: callable):
         assert len(self.param_groups) == 1
@@ -54,6 +86,47 @@ class Newton(torch.optim.Optimizer):
             ])
         H += 1e-4 * torch.eye(self.numel, device=prototype.device, dtype=prototype.dtype) # damping for num. stability
 
-        self.update_weights(
-            torch.linalg.solve(H, -g)
-        )
+        direction = torch.linalg.solve(H, -g)
+
+        if self.line_search_method is None:
+            self.update_weights(direction)
+            return
+
+        base_params = flat_params(params).clone()
+        loss0 = closure()
+        dphi0 = g @ direction
+
+        if not bool(dphi0 < 0):
+            self._set_params(params, base_params + direction)
+            return
+
+        def phi(alpha):
+            self._set_params(params, base_params + alpha * direction)
+            return closure()
+
+        def dphi(alpha):
+            self._set_params(params, base_params + alpha * direction)
+            grads = grad(closure(), params, create_graph=True, allow_unused=True)
+            gradient = torch.cat([
+                grad_.reshape(-1) if grad_ is not None else param.new_zeros(param.numel())
+                for param, grad_ in zip(params, grads)
+            ])
+            return gradient @ direction
+
+        if self.line_search_method == "wolfe":
+            alpha, _, _ = strong_wolfe(
+                phi=phi,
+                dphi=dphi,
+                phi0=loss0,
+                dphi0=dphi0,
+                alpha0=loss0.new_tensor(1.0),
+            )
+        else:
+            alpha, _ = armijo_backtracking(
+                phi=phi,
+                phi0=loss0,
+                dphi0=dphi0,
+                alpha0=loss0.new_tensor(1.0),
+            )
+
+        self._set_params(params, base_params + alpha * direction)

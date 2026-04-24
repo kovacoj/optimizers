@@ -66,6 +66,20 @@ def test_newton_step_ignores_frozen_parameter():
     assert y.item() != 1.0
 
 
+def test_newton_armijo_line_search_step_runs():
+    x = _scalar_param()
+    optimizer = Newton([x], line_search_method="armijo")
+
+    optimizer.step(lambda: (x ** 2).sum())
+
+
+def test_newton_wolfe_line_search_step_runs():
+    x = _scalar_param()
+    optimizer = Newton([x], line_search_method="wolfe")
+
+    optimizer.step(lambda: (x ** 2).sum())
+
+
 def test_annealing_step_runs():
     x = _scalar_param()
     optimizer = Annealing([x])
