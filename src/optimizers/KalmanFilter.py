@@ -99,7 +99,8 @@ class KalmanFilter(torch.optim.Optimizer):
 
         P = self.P / self.tau + self.Q
 
-        A = H @ P @ H.T + ((1 / self.eta) + self.eps) * torch.eye(errors.shape[0], device=errors.device, dtype=errors.dtype)
+        R = ((1 / self.eta) + self.eps) * torch.eye(errors.shape[0], device=errors.device, dtype=errors.dtype)
+        A = H @ P @ H.T + R
 
         K = torch.linalg.solve(A, H @ P).T
 
@@ -107,7 +108,9 @@ class KalmanFilter(torch.optim.Optimizer):
 
         self.update_weights(updates)
 
-        self.P = P - K @ H @ P
+        I = torch.eye(self.numel, device=P.device, dtype=P.dtype)
+        IKH = I - K @ H
+        self.P = IKH @ P @ IKH.T + K @ R @ K.T
 
         errors, _ = closure()
 

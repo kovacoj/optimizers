@@ -414,6 +414,29 @@ def test_extended_kalman_filter_q_update_changes_Q():
     assert optimizer.Q[0, 0].item() == pytest.approx(5.0)
 
 
+def _kalman_covariance_problem():
+    dtype = torch.float64
+    x = torch.nn.Parameter(torch.tensor([1.5, -1.0], dtype=dtype))
+    A = torch.tensor([[2.0, 0.5], [-1.0, 1.5]], dtype=dtype)
+    b = torch.tensor([1.0, -0.5], dtype=dtype)
+    return x, A, b
+
+
+def _assert_positive_definite_covariance(P):
+    assert torch.allclose(P, P.T, atol=1e-10)
+    assert torch.linalg.eigvalsh(P).min().item() > 0
+
+
+def test_extended_kalman_filter_covariance_stays_positive_definite():
+    x, A, b = _kalman_covariance_problem()
+    optimizer = ExtendedKalmanFilter([x])
+
+    for _ in range(20):
+        optimizer.step(lambda: A @ x - b)
+
+    _assert_positive_definite_covariance(optimizer.P)
+
+
 def test_kalman_filter_step_runs():
     x = _scalar_param()
     optimizer = KalmanFilter([x])
@@ -468,3 +491,13 @@ def test_kalman_filter_q_update_changes_Q():
     optimizer.q = 5.0
 
     assert optimizer.Q[0, 0].item() == pytest.approx(5.0)
+
+
+def test_kalman_filter_covariance_stays_positive_definite():
+    x, A, b = _kalman_covariance_problem()
+    optimizer = KalmanFilter([x])
+
+    for _ in range(20):
+        optimizer.step(lambda: (A @ x - b, A))
+
+    _assert_positive_definite_covariance(optimizer.P)
