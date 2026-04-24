@@ -97,7 +97,7 @@ class Newton(torch.optim.Optimizer):
         dphi0 = g @ direction
 
         if not bool(dphi0 < 0):
-            self._set_params(params, base_params + direction)
+            self._set_params(params, base_params)
             return
 
         def phi(alpha):
