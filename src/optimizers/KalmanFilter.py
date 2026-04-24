@@ -92,10 +92,9 @@ class KalmanFilter(torch.optim.Optimizer):
 
         assert len(self.param_groups) == 1
 
-        closure = torch.enable_grad()(closure)
-
-        errors, H = closure()
-        errors = errors.view(-1)
+        with torch.no_grad():
+            errors, H = closure()
+        errors = errors.view(-1).clone()
 
         P = self.P / self.tau + self.Q
 
@@ -112,6 +111,4 @@ class KalmanFilter(torch.optim.Optimizer):
         IKH = I - K @ H
         self.P = IKH @ P @ IKH.T + K @ R @ K.T
 
-        errors, _ = closure()
-
-        return self.loss(errors.view(-1))
+        return self.loss((errors + H @ updates).view(-1))

@@ -475,6 +475,20 @@ def test_extended_kalman_filter_q_update_changes_Q():
     assert optimizer.Q[0, 0].item() == pytest.approx(5.0)
 
 
+def test_extended_kalman_filter_return_loss_closure_runs_without_grad():
+    x = _scalar_param()
+    optimizer = ExtendedKalmanFilter([x])
+    grad_modes = []
+
+    def closure():
+        grad_modes.append(torch.is_grad_enabled())
+        return x.view(-1)
+
+    optimizer.step(closure)
+
+    assert grad_modes == [True, False]
+
+
 def _kalman_covariance_problem():
     dtype = torch.float64
     x = torch.nn.Parameter(torch.tensor([1.5, -1.0], dtype=dtype))
@@ -552,6 +566,23 @@ def test_kalman_filter_q_update_changes_Q():
     optimizer.q = 5.0
 
     assert optimizer.Q[0, 0].item() == pytest.approx(5.0)
+
+
+def test_kalman_filter_step_evaluates_closure_once():
+    x, A, b = _kalman_covariance_problem()
+    optimizer = KalmanFilter([x])
+    calls = 0
+
+    def closure():
+        nonlocal calls
+        calls += 1
+        return A @ x - b, A
+
+    loss = optimizer.step(closure)
+
+    expected_errors = A @ x - b
+    assert calls == 1
+    assert loss.item() == pytest.approx((expected_errors @ expected_errors).item())
 
 
 def test_kalman_filter_covariance_stays_positive_definite():
