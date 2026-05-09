@@ -31,7 +31,6 @@ class Annealing(torch.optim.Optimizer):
             self.params
         )*self.temperature
 
-    @torch.no_grad()
     def step(self, closure: Callable):
         variants = [self.params, self.mutate().clone()]
         Fs = torch.empty(2)
@@ -47,4 +46,5 @@ class Annealing(torch.optim.Optimizer):
         load_flat_params_(trainable_params(self.param_groups), variants[idx])
         self.temperature *= 1 - self.cooling_rate
 
-        return closure()
+        with torch.enable_grad():
+            return closure()
